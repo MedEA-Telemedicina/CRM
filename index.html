@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>CRM 3CX (GitHub Pages + Google Places)</title>
+  <style>
+    :root{--bg:#0b1020;--card:#121a33;--txt:#e9ecf1;--muted:#a8b0c2;--accent:#4f7cff;--ok:#34d399;--bad:#fb7185}
+    *{box-sizing:border-box;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;}
+    body{margin:0;background:linear-gradient(180deg,var(--bg),#070a14);color:var(--txt)}
+    .container{max-width:980px;margin:0 auto;padding:28px}
+    .card{background:rgba(18,26,51,.92);border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:18px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
+    h1{font-size:26px;margin:0 0 10px}
+    h2{font-size:20px;margin:0 0 8px}
+    .muted{color:var(--muted)}
+    .row{display:flex;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.06)}
+    .row:last-child{border-bottom:0}
+    .k{flex:0 0 140px;color:var(--muted)}
+    .v{flex:1}
+    .badge{display:inline-block;font-size:12px;padding:4px 10px;border-radius:999px;border:1px solid rgba(255,255,255,.14);margin-left:10px}
+    .badge.ok{background:rgba(52,211,153,.16);border-color:rgba(52,211,153,.3)}
+    .badge.bad{background:rgba(251,113,133,.14);border-color:rgba(251,113,133,.3)}
+    .badge.info{background:rgba(79,124,255,.14);border-color:rgba(79,124,255,.35)}
+    .actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px}
+    button,a.btn{background:var(--accent);border:0;color:white;padding:10px 12px;border-radius:12px;cursor:pointer;font-weight:650;text-decoration:none;display:inline-block}
+    button.secondary,a.btn.secondary{background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.14)}
+    code{background:rgba(255,255,255,.08);padding:2px 6px;border-radius:8px}
+    .small{font-size:12px}
+    input{width:100%;padding:12px 14px;border-radius:12px;border:1px solid rgba(255,255,255,.14);background:#0c1227;color:var(--txt);outline:none}
+    .grid{display:grid;grid-template-columns:1fr;gap:14px}
+    @media(min-width:860px){.grid{grid-template-columns:1.2fr .8fr}}
+  </style>
+</head>
+<body>
+  <main class="container">
+    <h1>📞 CRM 3CX (GitHub Pages + Google)</h1>
+    <p class="muted">Configura 3CX per aprire <code>launcher.html?number=%CallerNumber%</code> così riusi la stessa finestra CRM.</p>
+
+    <div class="grid">
+      <section class="card">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+          <h2 id="displayName">In attesa chiamata...</h2>
+          <span id="statusBadge" class="badge info">Pronto</span>
+        </div>
+
+        <div class="row"><div class="k">Numero</div><div class="v" id="phone">-</div></div>
+        <div class="row"><div class="k">Email</div><div class="v" id="email">-</div></div>
+        <div class="row"><div class="k">Azienda</div><div class="v" id="company">-</div></div>
+        <div class="row"><div class="k">Indirizzo</div><div class="v" id="address">-</div></div>
+        <div class="row"><div class="k">Note</div><div class="v" id="notes">-</div></div>
+
+        <div class="actions">
+          <a id="googleBtn" class="btn secondary" target="_blank" rel="noopener">Cerca su Google</a>
+          <a id="mapsBtn" class="btn secondary" target="_blank" rel="noopener">Apri su Maps</a>
+          <a id="waBtn" class="btn secondary" target="_blank" rel="noopener">Apri WhatsApp</a>
+          <button id="reloadBtn" class="secondary" type="button">Ricarica dati</button>
+        </div>
+
+        <p class="muted small" id="hint"></p>
+      </section>
+
+      <aside class="card">
+        <h2>Setup Google</h2>
+        <p class="muted small">1) Inserisci la tua API key in <code>config.js</code>. 2) Abilita Places/Maps JS nel progetto Google Cloud. 3) Limita la key per <b>HTTP referrers</b> al tuo GitHub Pages.</p>
+        <p class="muted small">Se la key non è impostata, verrà mostrato solo il risultato da <code>data.json</code> e il link di ricerca Google.</p>
+
+        <hr style="border:0;border-top:1px solid rgba(255,255,255,.08);margin:14px 0" />
+
+        <h2>Test rapido</h2>
+        <input id="testNumber" placeholder="+393331234567" />
+        <div class="actions">
+          <button id="openLauncherBtn" type="button">Apri con launcher</button>
+          <a class="btn secondary" href="launcher.html" target="_blank" rel="noopener">Apri launcher vuoto</a>
+        </div>
+
+        <hr style="border:0;border-top:1px solid rgba(255,255,255,.08);margin:14px 0" />
+
+        <h2>Config 3CX</h2>
+        <p class="muted small">URL da mettere in 3CX (Parametri da inviare):</p>
+        <p class="small"><code id="cfgUrl">(si compila da solo)</code></p>
+      </aside>
+    </div>
+  </main>
+
+  <div id="gmaps" style="display:none"></div>
+
+  <script src="config.js"></script>
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const displayNameEl = $('displayName');
+    const badgeEl = $('statusBadge');
+    const phoneEl = $('phone');
+    const emailEl = $('email');
+    const companyEl = $('company');
+    const addressEl = $('address');
+    const notesEl = $('notes');
+    const hintEl = $('hint');
+
+    function normalize(n){
+      if(!n) return '';
+      const cleaned = n.replace(/\s+/g,'');
+      if(cleaned.startsWith('00')) return '+' + cleaned.slice(2);
+      return cleaned;
+    }
+
+    function setUIEmpty(){
+      emailEl.textContent = '-';
+      companyEl.textContent = '-';
+      addressEl.textContent = '-';
+      notesEl.textContent = '-';
+    }
+
+    function updateActions(number, placeId){
+      const n = number || '';
+      $('googleBtn').href = 'https://www.google.com/search?q=' + encodeURIComponent(n);
+      $('waBtn').href = 'https://wa.me/' + encodeURIComponent(n.replace(/\D/g,''));
+      if(placeId){
+        $('mapsBtn').href = 'https://www.google.com/maps/place/?q=place_id:' + encodeURIComponent(placeId);
+      } else {
+        $('mapsBtn').href = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(n);
+      }
+    }
+
+    // --- Google Places (client-side) ---
+    let gmapsReadyPromise = null;
+
+    function loadGoogleMapsIfNeeded(){
+      if(gmapsReadyPromise) return gmapsReadyPromise;
+      gmapsReadyPromise = new Promise((resolve, reject) => {
+        if(typeof GOOGLE_MAPS_API_KEY !== 'string' || !GOOGLE_MAPS_API_KEY || GOOGLE_MAPS_API_KEY.includes('INSERISCI')){
+          resolve(false);
+          return;
+        }
+        if(window.google && google.maps && google.maps.places){
+          resolve(true);
+          return;
+        }
+        const script = document.createElement('script');
+        script.src = 'https://maps.googleapis.com/maps/api/js?key=' + encodeURIComponent(GOOGLE_MAPS_API_KEY) + '&libraries=places&v=weekly';
+        script.async = true;
+        script.defer = true;
+        script.onload = () => resolve(true);
+        script.onerror = () => reject(new Error('Errore caricamento Google Maps JS. Controlla API key, referrer e API abilitate.'));
+        document.head.appendChild(script);
+      });
+      return gmapsReadyPromise;
+    }
+
+    async function lookupNameFromGooglePlaces(number){
+      const ok = await loadGoogleMapsIfNeeded();
+      if(!ok) return null;
+
+      // PlacesService richiede un elemento DOM (anche nascosto)
+      const service = new google.maps.places.PlacesService(document.getElementById('gmaps'));
+
+      const request = {
+        query: number,
+        fields: ['name','formatted_address','place_id','international_phone_number','website']
+      };
+
+      return new Promise((resolve) => {
+        service.textSearch(request, (results, status) => {
+          if(status !== google.maps.places.PlacesServiceStatus.OK || !results || !results.length){
+            resolve(null);
+            return;
+          }
+          // primo risultato
+          const r = results[0];
+          resolve({
+            name: r.name || null,
+            address: r.formatted_address || null,
+            placeId: r.place_id || null
+          });
+        });
+      });
+    }
+
+    async function loadByNumber(number){
+      const n = normalize(number);
+      phoneEl.textContent = n || '-';
+      updateActions(n, null);
+
+      if(!n){
+        displayNameEl.textContent = 'In attesa chiamata...';
+        badgeEl.textContent = 'Pronto';
+        badgeEl.className = 'badge info';
+        hintEl.textContent = '';
+        setUIEmpty();
+        return;
+      }
+
+      displayNameEl.textContent = 'Caricamento...';
+      badgeEl.textContent = 'Ricerca...';
+      badgeEl.className = 'badge info';
+      setUIEmpty();
+
+      // 1) prima prova data.json
+      let foundLocal = false;
+      try{
+        const res = await fetch('data.json', { cache: 'no-store' });
+        if(res.ok){
+          const clienti = await res.json();
+          const cliente = clienti.find(c => (c.numero && normalize(c.numero) === n) || (Array.isArray(c.numeri) && c.numeri.map(normalize).includes(n)));
+          if(cliente){
+            foundLocal = true;
+            displayNameEl.textContent = cliente.nome || cliente.displayName || 'Cliente';
+            badgeEl.textContent = 'Cliente trovato (locale)';
+            badgeEl.className = 'badge ok';
+            emailEl.textContent = cliente.email || '-';
+            companyEl.textContent = cliente.azienda || cliente.company || '-';
+            notesEl.textContent = cliente.note || '-';
+            hintEl.textContent = 'Trovato in data.json.';
+          }
+        }
+      }catch(e){
+        // ignora: continueremo con Google
+      }
+
+      // 2) se non trovato, prova Google Places (se configurato)
+      if(!foundLocal){
+        badgeEl.textContent = 'Non in locale, cerco su Google...';
+        badgeEl.className = 'badge info';
+        const g = await lookupNameFromGooglePlaces(n);
+        if(g && g.name){
+          displayNameEl.textContent = g.name;
+          badgeEl.textContent = 'Nome da Google Places';
+          badgeEl.className = 'badge ok';
+          companyEl.textContent = g.name;
+          addressEl.textContent = g.address || '-';
+          updateActions(n, g.placeId);
+          hintEl.textContent = 'Risultato recuperato da Google Places (funziona soprattutto per attività/aziende presenti su Maps).';
+        } else {
+          displayNameEl.textContent = 'Sconosciuto';
+          badgeEl.textContent = 'Nessun match automatico';
+          badgeEl.className = 'badge bad';
+          hintEl.textContent = 'Non trovato in data.json e nessun risultato da Google Places. Usa “Cerca su Google” per ricerca manuale.';
+        }
+      }
+
+      // Aggiorna URL senza ricaricare pagina
+      const url = new URL(window.location.href);
+      url.searchParams.set('number', n);
+      history.replaceState({}, '', url.toString());
+    }
+
+    // Listener per riuso della stessa finestra (BroadcastChannel)
+    const channel = new BroadcastChannel('crm3cx');
+    channel.onmessage = (ev) => {
+      if(ev?.data?.type === 'call'){
+        loadByNumber(ev.data.number);
+      }
+    };
+
+    // Bootstrap
+    const params = new URLSearchParams(window.location.search);
+    loadByNumber(params.get('number') || '');
+
+    $('reloadBtn').addEventListener('click', () => {
+      const params = new URLSearchParams(window.location.search);
+      loadByNumber(params.get('number') || phoneEl.textContent || '');
+    });
+
+    $('openLauncherBtn').addEventListener('click', () => {
+      const n = normalize($('testNumber').value);
+      const url = new URL(window.location.href);
+      url.pathname = url.pathname.replace(/index\.html$/,'') + 'launcher.html';
+      url.searchParams.set('number', n);
+      window.open(url.toString(), '_blank');
+    });
+
+    // Mostra URL di configurazione 3CX
+    const base = window.location.origin + window.location.pathname.replace(/index\.html$/,'');
+    $('cfgUrl').textContent = base + 'launcher.html?number=%CallerNumber%';
+  </script>
+</body>
+</html>
