@@ -1,0 +1,19 @@
+[
+  {
+    "numero": "+393331234567",
+    "nome": "Mario Rossi",
+    "email": "mario.rossi@example.com",
+    "azienda": "Rossi Impianti",
+    "note": "Cliente storico"
+  },
+  {
+    "numeri": [
+      "+390971123456",
+      "+393201112233"
+    ],
+    "nome": "Officina Marino",
+    "email": "info@officinamarino.example",
+    "azienda": "Officina Marino",
+    "note": "Preferisce chiamate al mattino"
+  }
+]
