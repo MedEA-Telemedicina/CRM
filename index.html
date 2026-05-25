@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>CRM 3CX (Google Places + Cache)</title>
+  <title>CRM 3CX — Fix E.164</title>
   <style>
     :root{--bg:#0b1020;--card:#121a33;--txt:#e9ecf1;--muted:#a8b0c2;--accent:#4f7cff;--ok:#34d399;--bad:#fb7185;--info:#60a5fa}
     *{box-sizing:border-box;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;}
@@ -15,7 +15,7 @@
     .muted{color:var(--muted)}
     .row{display:flex;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.06)}
     .row:last-child{border-bottom:0}
-    .k{flex:0 0 140px;color:var(--muted)}
+    .k{flex:0 0 170px;color:var(--muted)}
     .v{flex:1}
     .badge{display:inline-block;font-size:12px;padding:4px 10px;border-radius:999px;border:1px solid rgba(255,255,255,.14);margin-left:10px}
     .badge.ok{background:rgba(52,211,153,.16);border-color:rgba(52,211,153,.3)}
@@ -27,17 +27,16 @@
     button.danger{background:rgba(251,113,133,.18);border:1px solid rgba(251,113,133,.28)}
     code{background:rgba(255,255,255,.08);padding:2px 6px;border-radius:8px}
     .small{font-size:12px}
-    input,select{width:100%;padding:12px 14px;border-radius:12px;border:1px solid rgba(255,255,255,.14);background:#0c1227;color:var(--txt);outline:none}
+    input{width:100%;padding:12px 14px;border-radius:12px;border:1px solid rgba(255,255,255,.14);background:#0c1227;color:var(--txt);outline:none}
     .grid{display:grid;grid-template-columns:1fr;gap:14px}
     @media(min-width:900px){.grid{grid-template-columns:1.2fr .8fr}}
     .hr{border:0;border-top:1px solid rgba(255,255,255,.08);margin:14px 0}
-    .pill{display:inline-block;font-size:12px;padding:3px 8px;border-radius:999px;background:rgba(255,255,255,.08);color:var(--muted)}
   </style>
 </head>
 <body>
   <main class="container">
-    <h1>📞 CRM 3CX — Nome automatico</h1>
-    <p class="muted">Ordine di ricerca: <span class="pill">Cache locale</span> → <span class="pill">data.json</span> → <span class="pill">Google Places</span> → fallback “Cerca su Google”.</p>
+    <h1>📞 CRM 3CX — Nome automatico (Fix E.164)</h1>
+    <p class="muted">Se Google mostra il nome ma qui no, quasi sempre è perché 3CX invia un numero locale (es. <code>030...</code>) e Google Places preferisce il formato internazionale <code>+39...</code>.</p>
 
     <div class="grid">
       <section class="card">
@@ -46,57 +45,44 @@
           <span id="statusBadge" class="badge info">Pronto</span>
         </div>
 
-        <div class="row"><div class="k">Numero</div><div class="v" id="phone">-</div></div>
+        <div class="row"><div class="k">Numero ricevuto</div><div class="v" id="phoneRaw">-</div></div>
+        <div class="row"><div class="k">Numero normalizzato</div><div class="v" id="phoneNorm">-</div></div>
+        <div class="row"><div class="k">Tentativi query Places</div><div class="v" id="tries">-</div></div>
+        <div class="row"><div class="k">Stato Places</div><div class="v" id="placesStatus">-</div></div>
         <div class="row"><div class="k">Fonte</div><div class="v" id="source">-</div></div>
-        <div class="row"><div class="k">Email</div><div class="v" id="email">-</div></div>
         <div class="row"><div class="k">Azienda</div><div class="v" id="company">-</div></div>
         <div class="row"><div class="k">Indirizzo</div><div class="v" id="address">-</div></div>
-        <div class="row"><div class="k">Note</div><div class="v" id="notes">-</div></div>
 
         <div class="actions">
           <a id="googleBtn" class="btn secondary" target="_blank" rel="noopener">Cerca su Google</a>
           <a id="mapsBtn" class="btn secondary" target="_blank" rel="noopener">Apri su Maps</a>
-          <a id="waBtn" class="btn secondary" target="_blank" rel="noopener">Apri WhatsApp</a>
           <button id="reloadBtn" class="secondary" type="button">Ricarica</button>
         </div>
 
         <hr class="hr" />
 
-        <h2>Se non trova corrispondenza</h2>
-        <p class="muted small">Se su Google trovi il nome, puoi salvarlo qui: dalla prossima chiamata verrà mostrato subito (cache locale sul PC).</p>
-
-        <div class="grid" style="grid-template-columns:1fr;gap:10px">
-          <input id="manualName" placeholder="Nome / Ragione sociale" />
-          <input id="manualCompany" placeholder="Azienda (opzionale)" />
-          <input id="manualAddress" placeholder="Indirizzo (opzionale)" />
-          <div class="actions">
-            <button id="saveBtn" type="button">Salva in cache locale</button>
-            <button id="clearBtn" class="danger" type="button">Cancella cache per questo numero</button>
-          </div>
+        <h2>Salva manualmente (cache locale)</h2>
+        <p class="muted small">Se Places non trova, copia il nome visto su Google e salvalo: dalla prossima chiamata verrà mostrato subito.</p>
+        <input id="manualName" placeholder="Nome / Ragione sociale" />
+        <div class="actions">
+          <button id="saveBtn" type="button">Salva in cache locale</button>
+          <button id="clearBtn" class="danger" type="button">Cancella cache per questo numero</button>
         </div>
-
         <p class="muted small" id="hint"></p>
       </section>
 
       <aside class="card">
         <h2>Test rapido</h2>
-        <input id="testNumber" placeholder="+393331234567" />
+        <input id="testNumber" placeholder="0309380501 oppure +390309380501" />
         <div class="actions">
-          <button id="openLauncherBtn" type="button">Apri con launcher</button>
-          <a class="btn secondary" href="launcher.html" target="_blank" rel="noopener">Apri launcher</a>
+          <button id="simulateBtn" type="button">Simula chiamata</button>
         </div>
 
         <hr class="hr" />
 
         <h2>Config 3CX</h2>
-        <p class="muted small">URL da usare in 3CX (Parametri da inviare):</p>
+        <p class="muted small">In 3CX usa sempre il launcher per riutilizzare la stessa finestra:</p>
         <p class="small"><code id="cfgUrl">(si compila da solo)</code></p>
-        <p class="muted small">Suggerimento: imposta “Notifica quando” su <b>Collegato</b> per aprire solo quando rispondi.</p>
-
-        <hr class="hr" />
-
-        <h2>Perché su Google si vede ma qui no?</h2>
-        <p class="muted small">Google Search mostra pagine web; Google Places restituisce solo attività/luoghi presenti nel database di Maps. Se il numero è di un privato o non è associato a una scheda Maps, può non uscire nessun match.</p>
       </aside>
     </div>
   </main>
@@ -108,73 +94,60 @@
     const $ = (id) => document.getElementById(id);
     const displayNameEl = $('displayName');
     const badgeEl = $('statusBadge');
-    const phoneEl = $('phone');
+    const phoneRawEl = $('phoneRaw');
+    const phoneNormEl = $('phoneNorm');
+    const triesEl = $('tries');
+    const placesStatusEl = $('placesStatus');
     const sourceEl = $('source');
-    const emailEl = $('email');
     const companyEl = $('company');
     const addressEl = $('address');
-    const notesEl = $('notes');
     const hintEl = $('hint');
 
-    function normalize(n){
-      if(!n) return '';
-      const cleaned = n.replace(/\s+/g,'');
-      if(cleaned.startsWith('00')) return '+' + cleaned.slice(2);
-      return cleaned;
-    }
-
     function cacheKey(){ return 'crm3cx_cache_v1'; }
+    function getCache(){ try { return JSON.parse(localStorage.getItem(cacheKey()) || '{}'); } catch(e){ return {}; } }
+    function setCache(obj){ localStorage.setItem(cacheKey(), JSON.stringify(obj)); }
+    function getCached(n){ return getCache()[n] || null; }
+    function saveCached(n, name){ const c=getCache(); c[n]={name, savedAt:new Date().toISOString()}; setCache(c); }
+    function clearCached(n){ const c=getCache(); delete c[n]; setCache(c); }
 
-    function getCache(){
-      try { return JSON.parse(localStorage.getItem(cacheKey()) || '{}'); } catch(e){ return {}; }
-    }
+    function digitsOnly(s){ return (s||'').replace(/\D/g,''); }
 
-    function setCache(obj){
-      localStorage.setItem(cacheKey(), JSON.stringify(obj));
-    }
-
-    function getCachedContact(n){
-      const c = getCache();
-      return c[n] || null;
-    }
-
-    function saveCachedContact(n, data){
-      const c = getCache();
-      c[n] = { ...data, savedAt: new Date().toISOString() };
-      setCache(c);
-    }
-
-    function clearCachedContact(n){
-      const c = getCache();
-      delete c[n];
-      setCache(c);
-    }
-
-    function setUIEmpty(){
-      emailEl.textContent = '-';
-      companyEl.textContent = '-';
-      addressEl.textContent = '-';
-      notesEl.textContent = '-';
-      sourceEl.textContent = '-';
-      $('manualName').value = '';
-      $('manualCompany').value = '';
-      $('manualAddress').value = '';
+    function normalizeE164(raw){
+      const cleaned = (raw||'').toString().trim().replace(/\s+/g,'');
+      if(!cleaned) return { raw:'', e164:'', forSearch:'' };
+      // already +
+      if(cleaned.startsWith('+')){
+        const d = '+' + digitsOnly(cleaned);
+        return { raw: cleaned, e164: d, forSearch: d };
+      }
+      // 00 -> +
+      if(cleaned.startsWith('00')){
+        const d = '+' + digitsOnly(cleaned.slice(2));
+        return { raw: cleaned, e164: d, forSearch: d };
+      }
+      // Italy-specific: local numbers often start with 0 (landline) or 3 (mobile)
+      const d = digitsOnly(cleaned);
+      if(d.startsWith(DEFAULT_COUNTRY_CODE)){
+        return { raw: cleaned, e164: '+' + d, forSearch: '+' + d };
+      }
+      if(d.startsWith('0') || d.startsWith('3')){
+        return { raw: cleaned, e164: '+' + DEFAULT_COUNTRY_CODE + d, forSearch: '+' + DEFAULT_COUNTRY_CODE + ' ' + d };
+      }
+      // fallback
+      return { raw: cleaned, e164: '+' + DEFAULT_COUNTRY_CODE + d, forSearch: '+' + DEFAULT_COUNTRY_CODE + ' ' + d };
     }
 
     function updateActions(number, placeId){
-      const n = number || '';
-      $('googleBtn').href = 'https://www.google.com/search?q=' + encodeURIComponent(n);
-      $('waBtn').href = 'https://wa.me/' + encodeURIComponent(n.replace(/\D/g,''));
+      $('googleBtn').href = 'https://www.google.com/search?q=' + encodeURIComponent(number || '');
       if(placeId){
         $('mapsBtn').href = 'https://www.google.com/maps/place/?q=place_id:' + encodeURIComponent(placeId);
       } else {
-        $('mapsBtn').href = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(n);
+        $('mapsBtn').href = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(number || '');
       }
     }
 
-    // --- Google Places (client-side) ---
+    // --- Google Places JS ---
     let gmapsReadyPromise = null;
-
     function loadGoogleMapsIfNeeded(){
       if(gmapsReadyPromise) return gmapsReadyPromise;
       gmapsReadyPromise = new Promise((resolve, reject) => {
@@ -197,210 +170,171 @@
       return gmapsReadyPromise;
     }
 
-    function placesService(){
-      return new google.maps.places.PlacesService(document.getElementById('gmaps'));
-    }
+    function service(){ return new google.maps.places.PlacesService(document.getElementById('gmaps')); }
 
-    // Tentativo 1: findPlaceFromQuery (più mirato)
-    function findPlace(number){
+    function findPlace(query){
       return new Promise((resolve) => {
-        const service = placesService();
-        const request = {
-          query: number,
+        const req = {
+          query,
           fields: ['name','formatted_address','place_id'],
-          // Bias Italia (cerchio)
           locationBias: { center: { lat: DEFAULT_BIAS_LAT, lng: DEFAULT_BIAS_LNG }, radius: DEFAULT_BIAS_RADIUS_METERS }
         };
-        service.findPlaceFromQuery(request, (results, status) => {
-          if(status !== google.maps.places.PlacesServiceStatus.OK || !results || !results.length){
-            resolve(null);
-            return;
-          }
-          const r = results[0];
-          resolve({ name: r.name || null, address: r.formatted_address || null, placeId: r.place_id || null });
+        service().findPlaceFromQuery(req, (results, status) => {
+          resolve({ results, status });
         });
       });
     }
 
-    // Tentativo 2: textSearch (fallback)
-    function textSearch(number){
+    function textSearch(query){
       return new Promise((resolve) => {
-        const service = placesService();
-        const request = {
-          query: number,
-          // Bias Italia (cerchio)
+        const req = {
+          query,
           location: new google.maps.LatLng(DEFAULT_BIAS_LAT, DEFAULT_BIAS_LNG),
           radius: DEFAULT_BIAS_RADIUS_METERS,
         };
-        service.textSearch(request, (results, status) => {
-          if(status !== google.maps.places.PlacesServiceStatus.OK || !results || !results.length){
-            resolve(null);
-            return;
-          }
-          const r = results[0];
-          resolve({ name: r.name || null, address: r.formatted_address || null, placeId: r.place_id || null });
+        service().textSearch(req, (results, status) => {
+          resolve({ results, status });
         });
       });
     }
 
-    async function lookupFromGooglePlaces(number){
+    async function lookupPlaces(queries){
       const ok = await loadGoogleMapsIfNeeded();
-      if(!ok) return null;
-      // prova findPlace
-      const a = await findPlace(number);
-      if(a && a.name) return a;
-      // fallback textSearch
-      const b = await textSearch(number);
-      if(b && b.name) return b;
-      return null;
+      if(!ok) return { hit:null, status:'NO_KEY' };
+
+      for(const q of queries){
+        // 1) findPlace
+        let r = await findPlace(q);
+        if(r.status === google.maps.places.PlacesServiceStatus.OK && r.results && r.results.length){
+          return { hit: r.results[0], status: 'OK(findPlaceFromQuery)' };
+        }
+        // 2) textSearch fallback
+        r = await textSearch(q);
+        if(r.status === google.maps.places.PlacesServiceStatus.OK && r.results && r.results.length){
+          return { hit: r.results[0], status: 'OK(textSearch)' };
+        }
+        // save last status
+        placesStatusEl.textContent = String(r.status);
+      }
+      return { hit:null, status: String(placesStatusEl.textContent || 'ZERO_RESULTS') };
     }
 
-    async function loadByNumber(number){
-      const n = normalize(number);
-      phoneEl.textContent = n || '-';
-      updateActions(n, null);
+    async function loadByNumber(raw){
+      const norm = normalizeE164(raw);
+      phoneRawEl.textContent = norm.raw || '-';
+      phoneNormEl.textContent = norm.e164 || '-';
       hintEl.textContent = '';
+      companyEl.textContent = '-';
+      addressEl.textContent = '-';
+      sourceEl.textContent = '-';
+      placesStatusEl.textContent = '-';
 
-      if(!n){
+      const n = norm.e164;
+      updateActions(n || norm.raw, null);
+
+      if(!norm.raw){
         displayNameEl.textContent = 'In attesa chiamata...';
         badgeEl.textContent = 'Pronto';
         badgeEl.className = 'badge info';
-        setUIEmpty();
+        triesEl.textContent = '-';
         return;
       }
 
-      displayNameEl.textContent = 'Caricamento...';
-      badgeEl.textContent = 'Ricerca...';
-      badgeEl.className = 'badge info';
-      setUIEmpty();
-
-      // 0) Cache locale
-      const cached = getCachedContact(n);
+      // 0) cache locale: usa chiave e164
+      const cached = n ? getCached(n) : null;
       if(cached && cached.name){
         displayNameEl.textContent = cached.name;
-        badgeEl.textContent = 'Trovato (cache locale)';
+        badgeEl.textContent = 'Trovato (cache)';
         badgeEl.className = 'badge ok';
         sourceEl.textContent = 'Cache locale';
-        companyEl.textContent = cached.company || '-';
-        addressEl.textContent = cached.address || '-';
-        notesEl.textContent = cached.note || '-';
-        $('manualName').value = cached.name || '';
-        $('manualCompany').value = cached.company || '';
-        $('manualAddress').value = cached.address || '';
-        // aggiorna URL
-        const url = new URL(window.location.href); url.searchParams.set('number', n); history.replaceState({}, '', url.toString());
+        $('manualName').value = cached.name;
+        triesEl.textContent = '-';
         return;
       }
 
-      // 1) data.json
-      try{
-        const res = await fetch('data.json', { cache: 'no-store' });
-        if(res.ok){
-          const clienti = await res.json();
-          const cliente = clienti.find(c => (c.numero && normalize(c.numero) === n) || (Array.isArray(c.numeri) && c.numeri.map(normalize).includes(n)));
-          if(cliente){
-            displayNameEl.textContent = cliente.nome || cliente.displayName || 'Cliente';
-            badgeEl.textContent = 'Trovato (data.json)';
-            badgeEl.className = 'badge ok';
-            sourceEl.textContent = 'data.json';
-            emailEl.textContent = cliente.email || '-';
-            companyEl.textContent = cliente.azienda || cliente.company || '-';
-            notesEl.textContent = cliente.note || '-';
-            $('manualName').value = cliente.nome || cliente.displayName || '';
-            $('manualCompany').value = cliente.azienda || cliente.company || '';
-            $('manualAddress').value = '';
-            const url = new URL(window.location.href); url.searchParams.set('number', n); history.replaceState({}, '', url.toString());
-            return;
-          }
-        }
-      }catch(e){
-        // continua
-      }
+      displayNameEl.textContent = 'Ricerca...';
+      badgeEl.textContent = 'Ricerca...';
+      badgeEl.className = 'badge info';
 
-      // 2) Google Places
-      sourceEl.textContent = 'Google Places (tentativo)';
-      const g = await lookupFromGooglePlaces(n);
-      if(g && g.name){
-        displayNameEl.textContent = g.name;
+      // Prepare multiple query tries
+      const rawDigits = digitsOnly(norm.raw);
+      const queries = [];
+      if(n) queries.push(n);
+      if(norm.forSearch) queries.push(norm.forSearch);
+      // Try also with spaces grouping (best-effort)
+      if(n) queries.push(n.replace(/\+39(\d{2,4})(\d+)/, '+39 $1 $2'));
+      // raw as typed
+      queries.push(norm.raw);
+      // raw digits only
+      queries.push(rawDigits);
+
+      // de-dup
+      const uniq = [...new Set(queries.filter(Boolean))];
+      triesEl.textContent = uniq.join(' | ');
+
+      const result = await lookupPlaces(uniq);
+      placesStatusEl.textContent = result.status;
+
+      if(result.hit && result.hit.name){
+        displayNameEl.textContent = result.hit.name;
         badgeEl.textContent = 'Trovato (Google Places)';
         badgeEl.className = 'badge ok';
         sourceEl.textContent = 'Google Places';
-        companyEl.textContent = g.name;
-        addressEl.textContent = g.address || '-';
-        updateActions(n, g.placeId);
-        hintEl.textContent = 'Nota: Google Places funziona soprattutto per attività/aziende presenti su Maps.';
-
-        // salva automaticamente in cache per la prossima volta
-        saveCachedContact(n, { name: g.name, company: g.name, address: g.address || '', note: 'Auto da Google Places' });
-        $('manualName').value = g.name;
-        $('manualCompany').value = g.name;
-        $('manualAddress').value = g.address || '';
-
-        const url = new URL(window.location.href); url.searchParams.set('number', n); history.replaceState({}, '', url.toString());
-        return;
+        companyEl.textContent = result.hit.name;
+        addressEl.textContent = result.hit.formatted_address || '-';
+        updateActions(n || norm.raw, result.hit.place_id || null);
+        // cache
+        if(n) saveCached(n, result.hit.name);
+        $('manualName').value = result.hit.name;
+      } else {
+        displayNameEl.textContent = 'Sconosciuto';
+        badgeEl.textContent = 'Nessuna corrispondenza';
+        badgeEl.className = 'badge bad';
+        sourceEl.textContent = 'N/D';
+        hintEl.textContent = 'Suggerimento: prova a verificare che 3CX invii il numero con prefisso (E.164). In alternativa salva manualmente il nome in cache.';
       }
-
-      // 3) Nessun match
-      displayNameEl.textContent = 'Sconosciuto';
-      badgeEl.textContent = 'Nessuna corrispondenza';
-      badgeEl.className = 'badge bad';
-      sourceEl.textContent = 'N/D';
-      hintEl.textContent = 'Se su Google vedi il nome ma qui no, probabilmente non esiste una scheda Maps associata a quel numero. Puoi salvarlo manualmente (cache locale).';
-
-      const url = new URL(window.location.href); url.searchParams.set('number', n); history.replaceState({}, '', url.toString());
     }
 
-    // --- Eventi ---
     $('reloadBtn').addEventListener('click', () => {
       const params = new URLSearchParams(window.location.search);
-      loadByNumber(params.get('number') || phoneEl.textContent || '');
+      loadByNumber(params.get('number') || '');
     });
 
+    $('simulateBtn').addEventListener('click', () => loadByNumber($('testNumber').value));
+
     $('saveBtn').addEventListener('click', () => {
-      const n = phoneEl.textContent;
-      if(!n || n === '-') return;
+      const n = phoneNormEl.textContent;
       const name = $('manualName').value.trim();
-      const company = $('manualCompany').value.trim();
-      const address = $('manualAddress').value.trim();
-      if(!name){
-        hintEl.textContent = 'Inserisci almeno il nome prima di salvare.';
+      if(!n || n === '-' || !name){
+        hintEl.textContent = 'Inserisci un nome e assicurati che ci sia un numero normalizzato.';
         return;
       }
-      saveCachedContact(n, { name, company, address, note: 'Inserito manualmente' });
-      hintEl.textContent = 'Salvato! Dalla prossima chiamata verrà mostrato subito.';
+      saveCached(n, name);
+      hintEl.textContent = 'Salvato in cache! Dalla prossima chiamata verrà mostrato subito.';
       loadByNumber(n);
     });
 
     $('clearBtn').addEventListener('click', () => {
-      const n = phoneEl.textContent;
+      const n = phoneNormEl.textContent;
       if(!n || n === '-') return;
-      clearCachedContact(n);
+      clearCached(n);
       hintEl.textContent = 'Cache cancellata per questo numero.';
       loadByNumber(n);
     });
 
-    $('openLauncherBtn').addEventListener('click', () => {
-      const n = normalize($('testNumber').value);
-      const url = new URL(window.location.href);
-      url.pathname = url.pathname.replace(/index\.html$/,'') + 'launcher.html';
-      url.searchParams.set('number', n);
-      window.open(url.toString(), '_blank');
-    });
-
-    // Listener per riuso della stessa finestra (BroadcastChannel)
+    // BroadcastChannel for reuse window
     const channel = new BroadcastChannel('crm3cx');
     channel.onmessage = (ev) => {
       if(ev?.data?.type === 'call') loadByNumber(ev.data.number);
     };
 
-    // Bootstrap
+    // bootstrap
     const params = new URLSearchParams(window.location.search);
     loadByNumber(params.get('number') || '');
 
-    // Mostra URL di configurazione 3CX
+    // config URL
     const base = window.location.origin + window.location.pathname.replace(/index\.html$/,'');
     $('cfgUrl').textContent = base + 'launcher.html?number=%CallerNumber%';
-
   </script>
 </body>
 </html>

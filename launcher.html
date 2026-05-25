@@ -16,15 +16,8 @@
   <p class="muted">Se non succede nulla, abilita i popup per questo dominio.</p>
 
 <script>
-  function normalize(n){
-    if(!n) return '';
-    const cleaned = n.replace(/\s+/g,'');
-    if(cleaned.startsWith('00')) return '+' + cleaned.slice(2);
-    return cleaned;
-  }
-
   const params = new URLSearchParams(window.location.search);
-  const number = normalize(params.get('number') || '');
+  const number = params.get('number') || '';
 
   const base = window.location.origin + window.location.pathname.replace(/launcher\.html$/,'');
   const indexUrl = base + 'index.html' + (number ? ('?number=' + encodeURIComponent(number)) : '');
