@@ -1,9 +1,9 @@
 [
   {
-    "numero": "+393331234567",
-    "nome": "Mario Rossi",
-    "email": "mario.rossi@example.com",
-    "azienda": "Rossi Impianti",
-    "note": "Cliente storico"
+    "numero": "+390971123456",
+    "nome": "Cliente di esempio",
+    "email": "info@example.com",
+    "azienda": "Esempio S.r.l.",
+    "note": "Record demo"
   }
 ]
