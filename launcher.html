@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Launcher CRM 3CX</title>
+</head>
+<body>
+<script>
+  // Riuso di una sola finestra/tab
+  const params = new URLSearchParams(window.location.search);
+  const number = params.get('number') || '';
+  const base = window.location.origin + window.location.pathname.replace(/launcher\.html$/,'');
+  const crmUrl = base + 'index.html' + (number ? ('?number=' + encodeURIComponent(number)) : '');
+
+  window.open(crmUrl, 'CRM3CX');
+
+  // invia numero alla pagina già aperta
+  try {
+    const ch = new BroadcastChannel('crm3cx');
+    ch.postMessage({ type: 'call', number });
+    setTimeout(() => ch.close(), 100);
+  } catch(e) {}
+
+  setTimeout(() => window.close(), 250);
+</script>
+</body>
+</html>
