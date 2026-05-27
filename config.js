@@ -5,7 +5,7 @@
 const CONFIG = {
   // URL del tuo Cloudflare Worker (endpoint /lookup)
   // Es: "https://crm-lookup.tuonome.workers.dev/lookup"
-  WORKER_LOOKUP_URL: "https://shiny-mud-a8b9.testmedeatelemedicina.workers.dev",
+  WORKER_LOOKUP_URL: "https://shiny-mud-a8b9.testmedeatelemedicina.workers.dev/lookup",
 
   // Supabase
   // Trovalo in: Supabase → Settings → API → Project URL
