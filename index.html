@@ -209,8 +209,8 @@
   <div class="card">
     <div class="card-title">🔧 Nuova nota assistenza</div>
     <div class="field-row">
-      <label>Operatore (opzionale)</label>
-      <input type="text" id="f-operator" placeholder="Il tuo nome…">
+      <label>Operatore <span style="color:#ef4444">*</span></label>
+      <input type="text" id="f-operator" placeholder="Il tuo nome…" required>
     </div>
     <textarea id="f-note" placeholder="Descrivi l'intervento effettuato…"></textarea>
     <div class="btn-row" style="margin-top:10px">
@@ -377,7 +377,15 @@ async function saveNote() {
   const noteText = document.getElementById("f-note").value.trim();
   if (!noteText) { toast("Scrivi una nota prima di salvare.", "red"); return; }
 
-  const operator = document.getElementById("f-operator").value.trim() || null;
+  const operator = document.getElementById("f-operator").value.trim();
+  if (!operator) {
+    const field = document.getElementById("f-operator");
+    field.style.borderColor = "#ef4444";
+    field.focus();
+    toast("⚠️ Il nome dell'operatore è obbligatorio.", "red");
+    setTimeout(() => { field.style.borderColor = ""; }, 2000);
+    return;
+  }
 
   try {
     const { error } = await sb.from("call_notes").insert({
