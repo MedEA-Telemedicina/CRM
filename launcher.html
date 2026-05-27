@@ -4,38 +4,83 @@
   <meta charset="UTF-8">
   <title>CRM 3CX — Avvio</title>
   <style>
-    body { font-family: sans-serif; display: flex; justify-content: center;
-           align-items: center; height: 100vh; margin: 0; background: #1a1a2e; color: #eee; }
+    body {
+      font-family: sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+      background: #1a1a2e;
+      color: #eee;
+    }
     .box { text-align: center; }
-    .spinner { width: 48px; height: 48px; border: 5px solid #444;
-               border-top-color: #4f8ef7; border-radius: 50%;
-               animation: spin 0.8s linear infinite; margin: 0 auto 16px; }
+    .spinner {
+      width: 48px; height: 48px;
+      border: 5px solid #444;
+      border-top-color: #4f8ef7;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin: 0 auto 16px;
+    }
     @keyframes spin { to { transform: rotate(360deg); } }
     p { color: #aaa; font-size: 14px; }
+    #fallback-btn {
+      display: none;
+      margin-top: 20px;
+      padding: 12px 28px;
+      background: #4f8ef7;
+      color: #fff;
+      font-size: 16px;
+      font-weight: bold;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      text-decoration: none;
+    }
+    #fallback-btn:hover { background: #3a7be0; }
   </style>
 </head>
 <body>
   <div class="box">
-    <div class="spinner"></div>
+    <div class="spinner" id="spinner"></div>
     <p id="msg">Apertura scheda cliente…</p>
+    <a id="fallback-btn">👉 Apri scheda cliente</a>
   </div>
+
   <script>
     const params = new URLSearchParams(window.location.search);
     const number = params.get("number") || "";
 
     if (!number) {
       document.getElementById("msg").textContent = "Numero non ricevuto da 3CX.";
+      document.getElementById("spinner").style.display = "none";
     } else {
-      // Apre la pagina principale in una nuova finestra/tab centrata
       const w = 600, h = 700;
       const left = Math.round(screen.width / 2 - w / 2);
       const top  = Math.round(screen.height / 2 - h / 2);
       const features = `width=${w},height=${h},left=${left},top=${top},resizable=yes,scrollbars=yes`;
       const dest = `index.html?number=${encodeURIComponent(number)}`;
-      window.open(dest, "_blank", features);
 
-      // Chiudi questa finestra dopo un attimo
-      setTimeout(() => window.close(), 800);
+      const win = window.open(dest, "_blank", features);
+
+      if (win) {
+        // Popup aperto correttamente → chiudi il launcher
+        win.focus();
+        setTimeout(() => window.close(), 800);
+      } else {
+        // Popup BLOCCATO dal browser → mostra pulsante di fallback
+        document.getElementById("spinner").style.display = "none";
+        document.getElementById("msg").textContent = "Il browser ha bloccato il popup. Clicca il pulsante per aprire la scheda:";
+
+        const btn = document.getElementById("fallback-btn");
+        btn.href = dest;
+        btn.target = "_blank";
+        btn.style.display = "inline-block";
+        btn.addEventListener("click", () => {
+          setTimeout(() => window.close(), 500);
+        });
+      }
     }
   </script>
 </body>
