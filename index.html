@@ -1,283 +1,483 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>CRM 3CX — Scheda + Annotazioni</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CRM 3CX</title>
+  <script src="config.js"></script>
+  <!-- Supabase JS CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <style>
-    :root{--bg:#0b1020;--card:#121a33;--txt:#e9ecf1;--muted:#a8b0c2;--accent:#4f7cff;--ok:#34d399;--bad:#fb7185;--line:rgba(255,255,255,.10)}
-    *{box-sizing:border-box;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;}
-    body{margin:0;background:linear-gradient(180deg,var(--bg),#070a14);color:var(--txt)}
-    .wrap{display:flex;min-height:100vh}
-    .left{flex:1;padding:22px}
-    .right{width:420px;max-width:46vw;border-left:1px solid var(--line);padding:22px;background:rgba(0,0,0,.15)}
-    .card{background:rgba(18,26,51,.92);border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:16px;margin-bottom:14px}
-    h1{font-size:20px;margin:0 0 8px}
-    h2{font-size:16px;margin:16px 0 8px;color:var(--muted)}
-    .row{display:flex;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.06)}
-    .row:last-child{border-bottom:0}
-    .k{flex:0 0 120px;color:var(--muted)}
-    .v{flex:1}
-    .badge{display:inline-block;font-size:12px;padding:4px 10px;border-radius:999px;border:1px solid rgba(255,255,255,.14);margin-left:10px}
-    .badge.ok{background:rgba(52,211,153,.16);border-color:rgba(52,211,153,.3)}
-    .badge.bad{background:rgba(251,113,133,.14);border-color:rgba(251,113,133,.3)}
-    .badge.info{background:rgba(79,124,255,.14);border-color:rgba(79,124,255,.35)}
-    textarea{width:100%;min-height:120px;background:#0c1227;color:var(--txt);border:1px solid rgba(255,255,255,.14);border-radius:12px;padding:12px;outline:none;resize:vertical}
-    input{width:100%;background:#0c1227;color:var(--txt);border:1px solid rgba(255,255,255,.14);border-radius:12px;padding:10px 12px;outline:none}
-    button{background:var(--accent);border:0;color:white;padding:10px 12px;border-radius:12px;cursor:pointer;font-weight:650}
-    button.secondary{background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.14)}
-    .actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}
-    .note{border:1px solid rgba(255,255,255,.10);border-radius:12px;padding:10px 12px;margin-top:10px;background:rgba(255,255,255,.03)}
-    .note small{color:var(--muted)}
-    a{color:#b7c7ff}
-    code{background:rgba(255,255,255,.08);padding:2px 6px;border-radius:8px}
-    .muted{color:var(--muted)}
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #f0f4f8;
+      color: #1e293b;
+      min-height: 100vh;
+    }
+
+    /* ── Header ── */
+    header {
+      background: linear-gradient(135deg, #1e40af, #2563eb);
+      color: white;
+      padding: 14px 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    }
+    header .logo { font-size: 22px; }
+    header h1 { font-size: 16px; font-weight: 600; }
+    header .number-badge {
+      margin-left: auto;
+      background: rgba(255,255,255,0.2);
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 13px;
+      font-family: monospace;
+    }
+
+    /* ── Main layout ── */
+    .container { padding: 16px; max-width: 620px; margin: 0 auto; }
+
+    /* ── Card ── */
+    .card {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+      padding: 18px 20px;
+      margin-bottom: 14px;
+    }
+    .card-title {
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      color: #64748b;
+      margin-bottom: 12px;
+    }
+
+    /* ── Lookup status ── */
+    #lookup-status {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 14px;
+      margin-bottom: 14px;
+    }
+    #lookup-status.loading { background: #eff6ff; color: #1d4ed8; }
+    #lookup-status.found   { background: #f0fdf4; color: #15803d; }
+    #lookup-status.notfound{ background: #fefce8; color: #a16207; }
+    #lookup-status.error   { background: #fef2f2; color: #b91c1c; }
+    .spinner-sm {
+      width: 16px; height: 16px;
+      border: 2px solid currentColor; border-top-color: transparent;
+      border-radius: 50%; animation: spin .7s linear infinite; flex-shrink: 0;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Info Fields ── */
+    .field-row { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; }
+    .field-row label { font-size: 11px; font-weight: 600; color: #94a3b8; text-transform: uppercase; }
+    .field-row input {
+      border: 1.5px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 9px 12px;
+      font-size: 14px;
+      color: #1e293b;
+      outline: none;
+      transition: border-color .15s;
+      background: #f8fafc;
+    }
+    .field-row input:focus { border-color: #3b82f6; background: white; }
+    .field-row input.changed { border-color: #f59e0b; background: #fffbeb; }
+
+    /* ── Buttons ── */
+    .btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 9px 18px; border-radius: 8px; border: none;
+      font-size: 13px; font-weight: 600; cursor: pointer;
+      transition: opacity .15s, transform .1s;
+    }
+    .btn:active { transform: scale(.97); }
+    .btn:disabled { opacity: .5; cursor: not-allowed; }
+    .btn-primary   { background: #2563eb; color: white; }
+    .btn-primary:hover:not(:disabled) { background: #1d4ed8; }
+    .btn-success   { background: #16a34a; color: white; }
+    .btn-success:hover:not(:disabled) { background: #15803d; }
+    .btn-ghost     { background: #f1f5f9; color: #475569; }
+    .btn-ghost:hover { background: #e2e8f0; }
+    .btn-danger    { background: #fee2e2; color: #b91c1c; }
+    .btn-danger:hover { background: #fecaca; }
+    .btn-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
+
+    /* ── Note editor ── */
+    textarea {
+      width: 100%; border: 1.5px solid #e2e8f0; border-radius: 8px;
+      padding: 10px 12px; font-size: 14px; resize: vertical;
+      min-height: 80px; font-family: inherit; outline: none;
+      background: #f8fafc; transition: border-color .15s;
+    }
+    textarea:focus { border-color: #3b82f6; background: white; }
+
+    /* ── Storico note ── */
+    .notes-list { display: flex; flex-direction: column; gap: 10px; }
+    .note-item {
+      background: #f8fafc;
+      border-left: 3px solid #3b82f6;
+      border-radius: 0 8px 8px 0;
+      padding: 10px 12px;
+      position: relative;
+    }
+    .note-item .note-meta {
+      font-size: 11px; color: #94a3b8; margin-bottom: 4px;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .note-item .note-text { font-size: 13px; line-height: 1.5; white-space: pre-wrap; }
+    .note-item .btn-delete-note {
+      background: none; border: none; cursor: pointer;
+      color: #94a3b8; font-size: 14px; padding: 2px 4px;
+    }
+    .note-item .btn-delete-note:hover { color: #ef4444; }
+    .empty-notes { text-align: center; color: #94a3b8; font-size: 13px; padding: 20px 0; }
+
+    /* ── Toast ── */
+    #toast {
+      position: fixed; bottom: 20px; right: 20px;
+      background: #1e293b; color: white;
+      padding: 10px 16px; border-radius: 8px;
+      font-size: 13px; box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+      opacity: 0; transform: translateY(8px);
+      transition: opacity .25s, transform .25s;
+      pointer-events: none; z-index: 999;
+    }
+    #toast.show { opacity: 1; transform: translateY(0); }
+    #toast.green { background: #15803d; }
+    #toast.red   { background: #b91c1c; }
   </style>
 </head>
 <body>
-<div class="wrap">
-  <div class="left">
-    <div class="card">
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
-        <div>
-          <h1 id="title">Caricamento...</h1>
-          <div class="muted">Scheda cliente da chiamata 3CX</div>
-        </div>
-        <span id="badge" class="badge info">Pronto</span>
-      </div>
 
-      <div class="row"><div class="k">Numero</div><div class="v" id="phone">-</div></div>
-      <div class="row"><div class="k">Indirizzo</div><div class="v" id="address">-</div></div>
-      <div class="row"><div class="k">Place ID</div><div class="v" id="placeId">-</div></div>
-      <div class="row"><div class="k">Link</div><div class="v" id="links">-</div></div>
+<header>
+  <span class="logo">📞</span>
+  <h1>CRM 3CX</h1>
+  <span class="number-badge" id="header-number">—</span>
+</header>
 
-      <div class="actions">
-        <button class="secondary" id="reloadBtn" type="button">Ricarica</button>
-      </div>
-      <div class="muted" style="margin-top:10px" id="hint"></div>
+<div class="container">
+
+  <!-- Stato lookup -->
+  <div id="lookup-status" class="loading">
+    <span class="spinner-sm"></span>
+    <span id="lookup-msg">Ricerca in corso…</span>
+  </div>
+
+  <!-- Scheda contatto -->
+  <div class="card">
+    <div class="card-title">📋 Scheda Cliente</div>
+
+    <div class="field-row">
+      <label>Numero</label>
+      <input type="text" id="f-number" readonly>
+    </div>
+    <div class="field-row">
+      <label>Nome</label>
+      <input type="text" id="f-name" placeholder="Nome cliente…">
+    </div>
+    <div class="field-row">
+      <label>Indirizzo</label>
+      <input type="text" id="f-address" placeholder="Indirizzo…">
+    </div>
+    <div class="field-row">
+      <label>Note generali</label>
+      <input type="text" id="f-notes" placeholder="Note sul cliente…">
     </div>
 
-    <div class="card">
-      <h2>Come configurare 3CX</h2>
-      <div class="muted">Nel client 3CX: <b>Integrazione → CRM</b> e usa il launcher.</div>
-      <p class="muted">Parametri da inviare:</p>
-      <p><code id="cfgUrl"></code></p>
-      <p class="muted">Imposta <b>Notifica quando: Collegato</b> per aprire solo quando rispondi.</p>
+    <div class="btn-row">
+      <button class="btn btn-primary" id="btn-save-contact" onclick="saveContact()">
+        💾 Salva in rubrica
+      </button>
+      <button class="btn btn-ghost" id="btn-reload" onclick="doLookup()" title="Ricarica da Google">
+        🔄 Ricarica da Google
+      </button>
     </div>
   </div>
 
-  <div class="right">
-    <div class="card">
-      <h2 style="margin-top:0">Annotazioni (condivise)</h2>
-      <div class="muted">Salvate su Supabase e visibili a tutti gli operatori.</div>
-
-      <label class="muted" for="author">Autore (opzionale)</label>
-      <input id="author" placeholder="Es. Operatore 201" />
-
-      <label class="muted" for="noteText" style="margin-top:10px;display:block">Nuova nota</label>
-      <textarea id="noteText" placeholder="Scrivi qui..."></textarea>
-
-      <div class="actions">
-        <button id="saveBtn" type="button">Salva nota</button>
-        <button class="secondary" id="refreshNotesBtn" type="button">Aggiorna</button>
-      </div>
-
-      <h2>Storico</h2>
-      <div id="notes"></div>
+  <!-- Nuova nota assistenza -->
+  <div class="card">
+    <div class="card-title">🔧 Nuova nota assistenza</div>
+    <div class="field-row">
+      <label>Operatore (opzionale)</label>
+      <input type="text" id="f-operator" placeholder="Il tuo nome…">
+    </div>
+    <textarea id="f-note" placeholder="Descrivi l'intervento effettuato…"></textarea>
+    <div class="btn-row" style="margin-top:10px">
+      <button class="btn btn-success" onclick="saveNote()">✅ Salva nota</button>
     </div>
   </div>
+
+  <!-- Storico note -->
+  <div class="card">
+    <div class="card-title">📂 Storico assistenze</div>
+    <div class="notes-list" id="notes-list">
+      <div class="empty-notes">Nessuna nota salvata.</div>
+    </div>
+  </div>
+
 </div>
 
-<script src="config.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<!-- Toast -->
+<div id="toast"></div>
+
 <script>
-  const $ = (id) => document.getElementById(id);
+// ─────────────────────────────────────────────
+// Init
+// ─────────────────────────────────────────────
+const params = new URLSearchParams(window.location.search);
+const rawNumber = params.get("number") || "";
+let currentContact = null; // dati da Supabase (o null)
 
-  function setBadge(type, text){
-    const b = $('badge');
-    b.className = 'badge ' + (type || 'info');
-    b.textContent = text;
+document.getElementById("header-number").textContent = rawNumber || "Nessun numero";
+document.getElementById("f-number").value = rawNumber;
+
+// Supabase client
+const sb = supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
+
+// Traccia modifiche manuali
+["f-name","f-address","f-notes"].forEach(id => {
+  document.getElementById(id).addEventListener("input", function() {
+    this.classList.add("changed");
+  });
+});
+
+// ─────────────────────────────────────────────
+// Avvio: carica da Supabase poi da Google
+// ─────────────────────────────────────────────
+async function init() {
+  if (!rawNumber) {
+    setStatus("notfound", "⚠️ Nessun numero ricevuto da 3CX.");
+    return;
   }
 
-  function digitsOnly(s){ return (s||'').replace(/\D/g,''); }
+  // Prima: controlla se è già in rubrica
+  await loadContactFromSupabase();
 
-  // Normalizzazione semplice Italia → E.164
-  function normalizeToE164IT(input){
-    const s = (input||'').toString().trim().replace(/\s+/g,'');
-    if(!s) return { raw:'', e164:'' };
-    if(s.startsWith('+')) return { raw:s, e164:'+' + digitsOnly(s) };
-    if(s.startsWith('00')) return { raw:s, e164:'+' + digitsOnly(s.slice(2)) };
-    const d = digitsOnly(s);
-    if(d.startsWith('39')) return { raw:s, e164:'+' + d };
-    if(d.startsWith('0') || d.startsWith('3')) return { raw:s, e164:'+39' + d };
-    return { raw:s, e164:'+39' + d };
+  // Se non trovato in rubrica: cerca su Google
+  if (!currentContact) {
+    await doLookup();
+  } else {
+    setStatus("found", "✅ Contatto trovato in rubrica");
   }
 
-  let supabaseClient = null;
+  // Carica storico note
+  await loadNotes();
+}
 
-  function ensureSupabase(){
-    if(!SUPABASE_URL || SUPABASE_URL.includes('INSERISCI')) throw new Error('SUPABASE_URL mancante in web/config.js');
-    if(!SUPABASE_ANON_KEY || SUPABASE_ANON_KEY.includes('INSERISCI')) throw new Error('SUPABASE_ANON_KEY mancante in web/config.js');
-    if(!supabaseClient) supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    return supabaseClient;
-  }
-
-  async function lookupGoogle(phoneRaw){
-    if(!WORKER_LOOKUP_URL || WORKER_LOOKUP_URL.includes('INSERISCI')){
-      return { ok:false, status:'NO_WORKER_URL' };
-    }
-    const r = await fetch(WORKER_LOOKUP_URL + '?number=' + encodeURIComponent(phoneRaw));
-    return await r.json();
-  }
-
-  async function upsertContact(norm, lookup){
-    // salva/aggiorna contatto in Supabase (cache)
-    const sb = ensureSupabase();
-    const payload = {
-      phone_e164: norm.e164,
-      display_name: lookup.ok ? lookup.name : null,
-      place_id: lookup.ok ? lookup.placeId : null,
-      formatted_address: lookup.ok ? lookup.address : null,
-      updated_at: new Date().toISOString()
-    };
-
-    // upsert by unique phone_e164
-    await sb.from('contacts').upsert(payload, { onConflict: 'phone_e164' });
-  }
-
-  async function loadNotes(phoneE164){
-    const sb = ensureSupabase();
+// ─────────────────────────────────────────────
+// Supabase: carica contatto
+// ─────────────────────────────────────────────
+async function loadContactFromSupabase() {
+  try {
     const { data, error } = await sb
-      .from('notes')
-      .select('note_text, author, created_at')
-      .eq('phone_e164', phoneE164)
-      .order('created_at', { ascending: false })
-      .limit(50);
+      .from("contacts")
+      .select("*")
+      .eq("number", rawNumber)
+      .maybeSingle();
 
-    if(error) throw error;
+    if (error) throw error;
 
-    const container = $('notes');
-    container.innerHTML = '';
-
-    if(!data || data.length === 0){
-      container.innerHTML = '<div class="muted">Nessuna nota.</div>';
-      return;
-    }
-
-    data.forEach(n => {
-      const d = new Date(n.created_at);
-      const author = n.author ? (' — <b>' + escapeHtml(n.author) + '</b>') : '';
-      container.insertAdjacentHTML('beforeend',
-        `<div class="note"><small>${d.toLocaleString()}${author}</small><div style="margin-top:6px">${escapeHtml(n.note_text)}</div></div>`
+    if (data) {
+      currentContact = data;
+      document.getElementById("f-name").value    = data.name    || "";
+      document.getElementById("f-address").value = data.address || "";
+      document.getElementById("f-notes").value   = data.notes   || "";
+      // Rimuovi marker "changed"
+      ["f-name","f-address","f-notes"].forEach(id =>
+        document.getElementById(id).classList.remove("changed")
       );
-    });
+    }
+  } catch(e) {
+    console.warn("Supabase load error:", e.message);
   }
+}
 
-  async function saveNote(phoneE164){
-    const text = $('noteText').value.trim();
-    const author = $('author').value.trim();
-    if(!text) return;
+// ─────────────────────────────────────────────
+// Google Places Lookup via Worker
+// ─────────────────────────────────────────────
+async function doLookup() {
+  if (!rawNumber) return;
+  setStatus("loading", "🔍 Ricerca nome su Google…");
 
-    const sb = ensureSupabase();
+  try {
+    const url = `${CONFIG.WORKER_LOOKUP_URL}?number=${encodeURIComponent(rawNumber)}`;
+    const resp = await fetch(url);
+    const data = await resp.json();
+
+    if (data.found && data.name) {
+      // Popola solo se il campo è vuoto o non è stato modificato manualmente
+      const nameField = document.getElementById("f-name");
+      const addrField = document.getElementById("f-address");
+
+      if (!nameField.value || nameField.value === (currentContact?.name || "")) {
+        nameField.value = data.name;
+        nameField.classList.remove("changed");
+      }
+      if (data.address && (!addrField.value || addrField.value === (currentContact?.address || ""))) {
+        addrField.value = data.address;
+        addrField.classList.remove("changed");
+      }
+      setStatus("found", `✅ Trovato su Google: ${data.name}`);
+    } else {
+      setStatus("notfound", "⚠️ Numero non trovato su Google (puoi inserire il nome manualmente)");
+    }
+  } catch(e) {
+    setStatus("error", "❌ Errore connessione Worker: " + e.message);
+  }
+}
+
+// ─────────────────────────────────────────────
+// Supabase: salva/aggiorna contatto
+// ─────────────────────────────────────────────
+async function saveContact() {
+  const btn = document.getElementById("btn-save-contact");
+  btn.disabled = true;
+
+  const payload = {
+    number:  rawNumber,
+    name:    document.getElementById("f-name").value.trim() || null,
+    address: document.getElementById("f-address").value.trim() || null,
+    notes:   document.getElementById("f-notes").value.trim() || null,
+  };
+
+  try {
     const { error } = await sb
-      .from('notes')
-      .insert({ phone_e164: phoneE164, note_text: text, author: author || null });
+      .from("contacts")
+      .upsert(payload, { onConflict: "number" });
 
-    if(error) throw error;
+    if (error) throw error;
 
-    $('noteText').value = '';
-    await loadNotes(phoneE164);
+    ["f-name","f-address","f-notes"].forEach(id =>
+      document.getElementById(id).classList.remove("changed")
+    );
+    toast("✅ Contatto salvato in rubrica", "green");
+    currentContact = payload;
+  } catch(e) {
+    toast("❌ Errore salvataggio: " + e.message, "red");
+  } finally {
+    btn.disabled = false;
   }
+}
 
-  function escapeHtml(s){
-    return (s||'').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+// ─────────────────────────────────────────────
+// Supabase: salva nota assistenza
+// ─────────────────────────────────────────────
+async function saveNote() {
+  const noteText = document.getElementById("f-note").value.trim();
+  if (!noteText) { toast("Scrivi una nota prima di salvare.", "red"); return; }
+
+  const operator = document.getElementById("f-operator").value.trim() || null;
+
+  try {
+    const { error } = await sb.from("call_notes").insert({
+      number:   rawNumber,
+      operator: operator,
+      note:     noteText,
+    });
+    if (error) throw error;
+
+    document.getElementById("f-note").value = "";
+    toast("✅ Nota salvata", "green");
+    await loadNotes();
+  } catch(e) {
+    toast("❌ Errore: " + e.message, "red");
   }
+}
 
-  async function render(number){
-    const norm = normalizeToE164IT(number);
-    $('phone').textContent = norm.e164 || '-';
-    $('address').textContent = '-';
-    $('placeId').textContent = '-';
-    $('links').innerHTML = '-';
-    $('hint').textContent = '';
+// ─────────────────────────────────────────────
+// Supabase: carica storico note
+// ─────────────────────────────────────────────
+async function loadNotes() {
+  const container = document.getElementById("notes-list");
+  container.innerHTML = '<div class="empty-notes">Caricamento…</div>';
 
-    if(!norm.raw){
-      $('title').textContent = 'In attesa chiamata...';
-      setBadge('info','Pronto');
+  try {
+    const { data, error } = await sb
+      .from("call_notes")
+      .select("*")
+      .eq("number", rawNumber)
+      .order("call_date", { ascending: false });
+
+    if (error) throw error;
+
+    if (!data || data.length === 0) {
+      container.innerHTML = '<div class="empty-notes">Nessuna nota salvata per questo numero.</div>';
       return;
     }
 
-    setBadge('info','Lookup...');
-    $('title').textContent = 'Ricerca cliente...';
-
-    // 1) Google lookup via Worker
-    let lookup;
-    try{
-      lookup = await lookupGoogle(norm.raw);
-    } catch(e){
-      lookup = { ok:false, status:'LOOKUP_ERROR', error: String(e) };
-    }
-
-    if(lookup.ok){
-      $('title').textContent = lookup.name;
-      $('address').textContent = lookup.address || '-';
-      $('placeId').textContent = lookup.placeId || '-';
-      const mapsLink = lookup.placeId
-        ? `https://www.google.com/maps/place/?q=place_id:${encodeURIComponent(lookup.placeId)}`
-        : `https://www.google.com/search?q=${encodeURIComponent(norm.e164)}`;
-      const googleLink = `https://www.google.com/search?q=${encodeURIComponent(norm.e164)}`;
-      $('links').innerHTML = `<a href="${mapsLink}" target="_blank" rel="noopener">Maps</a> · <a href="${googleLink}" target="_blank" rel="noopener">Google</a>`;
-      setBadge('ok','Trovato');
-    } else {
-      $('title').textContent = 'Sconosciuto';
-      $('hint').textContent = 'Nessun match da Google lookup. Puoi comunque inserire annotazioni.';
-      const googleLink = `https://www.google.com/search?q=${encodeURIComponent(norm.e164)}`;
-      $('links').innerHTML = `<a href="${googleLink}" target="_blank" rel="noopener">Google</a>`;
-      setBadge('bad', lookup.status || 'Nessun match');
-    }
-
-    // 2) Upsert contatto (cache) — non bloccare se supabase non configurato
-    try{ await upsertContact(norm, lookup); } catch(e) {}
-
-    // 3) Carica note (richiede Supabase)
-    try{
-      await loadNotes(norm.e164);
-    } catch(e){
-      $('notes').innerHTML = `<div class="muted">Errore note: ${escapeHtml(String(e))}</div>`;
-    }
-
-    // wiring bottoni
-    $('saveBtn').onclick = () => saveNote(norm.e164).catch(err => alert(err.message || err));
-    $('refreshNotesBtn').onclick = () => loadNotes(norm.e164).catch(err => alert(err.message || err));
+    container.innerHTML = data.map(n => {
+      const dt = new Date(n.call_date).toLocaleString("it-IT");
+      const op = n.operator ? `<strong>${escHtml(n.operator)}</strong> · ` : "";
+      return `
+        <div class="note-item" data-id="${n.id}">
+          <div class="note-meta">
+            <span>${op}${dt}</span>
+            <button class="btn-delete-note" onclick="deleteNote(${n.id})" title="Elimina nota">🗑️</button>
+          </div>
+          <div class="note-text">${escHtml(n.note)}</div>
+        </div>`;
+    }).join("");
+  } catch(e) {
+    container.innerHTML = `<div class="empty-notes" style="color:#ef4444">Errore caricamento: ${escHtml(e.message)}</div>`;
   }
+}
 
-  // Riuso finestra: ricevi nuovi numeri dal launcher
-  const ch = new BroadcastChannel('crm3cx');
-  ch.onmessage = (ev) => {
-    if(ev?.data?.type === 'call'){
-      const n = ev.data.number || '';
-      // aggiorna URL senza ricaricare
-      const u = new URL(window.location.href);
-      u.searchParams.set('number', n);
-      history.replaceState({}, '', u.toString());
-      render(n);
-    }
-  };
+// ─────────────────────────────────────────────
+// Supabase: elimina nota
+// ─────────────────────────────────────────────
+async function deleteNote(id) {
+  if (!confirm("Eliminare questa nota?")) return;
+  try {
+    const { error } = await sb.from("call_notes").delete().eq("id", id);
+    if (error) throw error;
+    toast("Nota eliminata", "green");
+    await loadNotes();
+  } catch(e) {
+    toast("❌ Errore: " + e.message, "red");
+  }
+}
 
-  $('reloadBtn').onclick = () => {
-    const p = new URLSearchParams(window.location.search);
-    render(p.get('number') || '');
-  };
+// ─────────────────────────────────────────────
+// Helpers
+// ─────────────────────────────────────────────
+function setStatus(type, msg) {
+  const el = document.getElementById("lookup-status");
+  const msgEl = document.getElementById("lookup-msg");
+  el.className = type;
+  msgEl.textContent = msg;
+  // Rimuovi spinner se non loading
+  const spinner = el.querySelector(".spinner-sm");
+  if (spinner) spinner.style.display = type === "loading" ? "block" : "none";
+}
 
-  // bootstrap
-  const p = new URLSearchParams(window.location.search);
-  const initial = p.get('number') || '';
+let toastTimer;
+function toast(msg, color = "") {
+  const el = document.getElementById("toast");
+  el.textContent = msg;
+  el.className = "show " + color;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { el.className = ""; }, 2800);
+}
 
-  // mostra URL di configurazione 3CX
-  const base = window.location.origin + window.location.pathname.replace(/index\.html$/,'');
-  $('cfgUrl').textContent = base + 'launcher.html?number=%CallerNumber%';
+function escHtml(str) {
+  return String(str || "")
+    .replace(/&/g,"&amp;").replace(/</g,"&lt;")
+    .replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
 
-  render(initial);
+// Avvia
+init();
 </script>
 </body>
 </html>

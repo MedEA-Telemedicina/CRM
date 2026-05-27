@@ -1,28 +1,42 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Launcher CRM 3CX</title>
+  <meta charset="UTF-8">
+  <title>CRM 3CX — Avvio</title>
+  <style>
+    body { font-family: sans-serif; display: flex; justify-content: center;
+           align-items: center; height: 100vh; margin: 0; background: #1a1a2e; color: #eee; }
+    .box { text-align: center; }
+    .spinner { width: 48px; height: 48px; border: 5px solid #444;
+               border-top-color: #4f8ef7; border-radius: 50%;
+               animation: spin 0.8s linear infinite; margin: 0 auto 16px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    p { color: #aaa; font-size: 14px; }
+  </style>
 </head>
 <body>
-<script>
-  // Riuso di una sola finestra/tab
-  const params = new URLSearchParams(window.location.search);
-  const number = params.get('number') || '';
-  const base = window.location.origin + window.location.pathname.replace(/launcher\.html$/,'');
-  const crmUrl = base + 'index.html' + (number ? ('?number=' + encodeURIComponent(number)) : '');
+  <div class="box">
+    <div class="spinner"></div>
+    <p id="msg">Apertura scheda cliente…</p>
+  </div>
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const number = params.get("number") || "";
 
-  window.open(crmUrl, 'CRM3CX');
+    if (!number) {
+      document.getElementById("msg").textContent = "Numero non ricevuto da 3CX.";
+    } else {
+      // Apre la pagina principale in una nuova finestra/tab centrata
+      const w = 600, h = 700;
+      const left = Math.round(screen.width / 2 - w / 2);
+      const top  = Math.round(screen.height / 2 - h / 2);
+      const features = `width=${w},height=${h},left=${left},top=${top},resizable=yes,scrollbars=yes`;
+      const dest = `index.html?number=${encodeURIComponent(number)}`;
+      window.open(dest, "_blank", features);
 
-  // invia numero alla pagina già aperta
-  try {
-    const ch = new BroadcastChannel('crm3cx');
-    ch.postMessage({ type: 'call', number });
-    setTimeout(() => ch.close(), 100);
-  } catch(e) {}
-
-  setTimeout(() => window.close(), 250);
-</script>
+      // Chiudi questa finestra dopo un attimo
+      setTimeout(() => window.close(), 800);
+    }
+  </script>
 </body>
 </html>
