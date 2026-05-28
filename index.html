@@ -6,211 +6,551 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>CRM 3CX</title>
   <script src="config.js"></script>
-  <!-- Supabase JS CDN -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --primary:       #2563eb;
+      --primary-dark:  #1d4ed8;
+      --primary-light: #eff6ff;
+      --success:       #10b981;
+      --success-dark:  #059669;
+      --warning:       #f59e0b;
+      --danger:        #ef4444;
+      --danger-dark:   #dc2626;
+      --surface:       #ffffff;
+      --bg:            #f0f4fb;
+      --border:        #e2e8f0;
+      --text:          #0f172a;
+      --text-muted:    #64748b;
+      --text-faint:    #94a3b8;
+      --radius:        14px;
+      --radius-sm:     8px;
+      --shadow-sm:     0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04);
+      --shadow-md:     0 4px 16px rgba(0,0,0,.08), 0 1px 4px rgba(0,0,0,.04);
+      --shadow-lg:     0 10px 40px rgba(0,0,0,.14);
+    }
+
+    html { scroll-behavior: smooth; }
+
     body {
-      font-family: 'Segoe UI', system-ui, sans-serif;
-      background: #f0f4f8;
-      color: #1e293b;
+      font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
       min-height: 100vh;
     }
 
-    /* ── Header ── */
+    /* ─── Animated background blobs ─── */
+    body::before, body::after {
+      content: '';
+      position: fixed;
+      border-radius: 50%;
+      filter: blur(80px);
+      opacity: .15;
+      pointer-events: none;
+      z-index: 0;
+    }
+    body::before {
+      width: 500px; height: 500px;
+      background: radial-gradient(circle, #3b82f6, transparent);
+      top: -120px; left: -100px;
+      animation: blobMove1 18s ease-in-out infinite alternate;
+    }
+    body::after {
+      width: 400px; height: 400px;
+      background: radial-gradient(circle, #6366f1, transparent);
+      bottom: -100px; right: -80px;
+      animation: blobMove2 22s ease-in-out infinite alternate;
+    }
+    @keyframes blobMove1 { from { transform: translate(0,0) scale(1); } to { transform: translate(40px, 30px) scale(1.1); } }
+    @keyframes blobMove2 { from { transform: translate(0,0) scale(1); } to { transform: translate(-30px,-25px) scale(1.08); } }
+
+    /* ─── Header ─── */
     header {
-      background: linear-gradient(135deg, #1e40af, #2563eb);
-      color: white;
-      padding: 14px 20px;
+      position: relative;
+      background: #ffffff;
+      padding: 14px 20px 14px;
+      text-align: center;
+      box-shadow: 0 2px 16px rgba(37,99,235,.12);
+      border-bottom: 1px solid #e2e8f0;
+      overflow: hidden;
+      z-index: 10;
+    }
+    header::before { content: none; }
+
+    .header-logo-wrap {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 12px 0 6px;
+    }
+    .header-logo-wrap img {
+      height: 44px;
+      width: auto;
+      filter: none;
+      opacity: 1;
+      transition: opacity .2s;
+    }
+    .header-logo-wrap img:hover { opacity: 1; }
+
+    .header-body {
       display: flex;
       align-items: center;
-      gap: 12px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+      justify-content: center;
+      gap: 10px;
+      margin-top: 2px;
     }
-    header .logo { font-size: 22px; }
-    header h1 { font-size: 16px; font-weight: 600; }
-    header .number-badge {
-      margin-left: auto;
-      background: rgba(255,255,255,0.2);
-      padding: 4px 12px;
+    .header-icon {
+      width: 34px; height: 34px;
+      background: rgba(255,255,255,.18);
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 17px;
+      backdrop-filter: blur(4px);
+    }
+    header h1 {
+      font-size: 15px;
+      font-weight: 700;
+      color: rgba(255,255,255,.95);
+      letter-spacing: .3px;
+    }
+    .number-badge {
+      background: var(--primary-light);
+      border: 1px solid #bfdbfe;
+      padding: 4px 13px;
       border-radius: 20px;
-      font-size: 13px;
-      font-family: monospace;
-    }
-
-    /* ── Main layout ── */
-    .container { padding: 16px; max-width: 620px; margin: 0 auto; }
-
-    /* ── Card ── */
-    .card {
-      background: white;
-      border-radius: 12px;
-      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
-      padding: 18px 20px;
-      margin-bottom: 14px;
-    }
-    .card-title {
       font-size: 12px;
       font-weight: 600;
-      text-transform: uppercase;
+      color: var(--primary);
+      font-family: 'SF Mono', monospace;
       letter-spacing: .5px;
-      color: #64748b;
-      margin-bottom: 12px;
+      position: absolute;
+      right: 20px;
+      top: 50%;
+      transform: translateY(-50%);
     }
 
-    /* ── Lookup status ── */
+    /* ─── Container ─── */
+    .container {
+      padding: 20px 16px 32px;
+      max-width: 620px;
+      margin: 0 auto;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* ─── Lookup status ─── */
     #lookup-status {
       display: flex;
       align-items: center;
       gap: 10px;
-      padding: 10px 14px;
-      border-radius: 8px;
-      font-size: 14px;
-      margin-bottom: 14px;
+      padding: 11px 15px;
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      font-weight: 500;
+      margin-bottom: 16px;
+      border: 1px solid transparent;
+      transition: background .3s, color .3s, border-color .3s;
+      animation: fadeSlideDown .4s ease both;
     }
-    #lookup-status.loading { background: #eff6ff; color: #1d4ed8; }
-    #lookup-status.found   { background: #f0fdf4; color: #15803d; }
-    #lookup-status.notfound{ background: #fefce8; color: #a16207; }
-    #lookup-status.error   { background: #fef2f2; color: #b91c1c; }
+    #lookup-status.loading  { background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; }
+    #lookup-status.found    { background: #f0fdf4; color: #15803d; border-color: #bbf7d0; }
+    #lookup-status.notfound { background: #fffbeb; color: #92400e; border-color: #fde68a; }
+    #lookup-status.error    { background: #fef2f2; color: #b91c1c; border-color: #fecaca; }
+
     .spinner-sm {
-      width: 16px; height: 16px;
+      width: 15px; height: 15px; flex-shrink: 0;
       border: 2px solid currentColor; border-top-color: transparent;
-      border-radius: 50%; animation: spin .7s linear infinite; flex-shrink: 0;
+      border-radius: 50%; animation: spin .7s linear infinite;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    /* ── Info Fields ── */
-    .field-row { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; }
-    .field-row label { font-size: 11px; font-weight: 600; color: #94a3b8; text-transform: uppercase; }
-    .field-row input {
-      border: 1.5px solid #e2e8f0;
-      border-radius: 8px;
+    /* ─── Card ─── */
+    .card {
+      background: var(--surface);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-md);
+      padding: 20px 20px 18px;
+      margin-bottom: 14px;
+      border: 1px solid rgba(226,232,240,.6);
+      transition: box-shadow .25s, transform .25s;
+      animation: fadeSlideUp .45s ease both;
+    }
+    .card:hover { box-shadow: 0 6px 24px rgba(0,0,0,.1); }
+    .card:nth-child(2) { animation-delay: .05s; }
+    .card:nth-child(3) { animation-delay: .10s; }
+    .card:nth-child(4) { animation-delay: .15s; }
+
+    .card-title {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .8px;
+      color: var(--text-faint);
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .card-title::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+      margin-left: 4px;
+    }
+
+    /* ─── Fields ─── */
+    .field-row { display: flex; flex-direction: column; gap: 5px; margin-bottom: 13px; }
+    .field-row label {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: .5px;
+    }
+    .field-row input,
+    .modal-box input {
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-sm);
       padding: 9px 12px;
       font-size: 14px;
-      color: #1e293b;
+      font-family: inherit;
+      color: var(--text);
       outline: none;
-      transition: border-color .15s;
       background: #f8fafc;
+      transition: border-color .18s, background .18s, box-shadow .18s;
     }
-    .field-row input:focus { border-color: #3b82f6; background: white; }
-    .field-row input.changed { border-color: #f59e0b; background: #fffbeb; }
+    .field-row input:focus,
+    .modal-box input:focus {
+      border-color: var(--primary);
+      background: white;
+      box-shadow: 0 0 0 3px rgba(37,99,235,.1);
+    }
+    .field-row input[readonly] {
+      background: #f1f5f9;
+      color: var(--text-muted);
+      cursor: default;
+    }
+    .field-row input.changed {
+      border-color: var(--warning);
+      background: #fffbeb;
+    }
 
-    /* ── Buttons ── */
+    /* ─── View-mode fields (cliente trovato, non in modifica) ─── */
+    .field-row input.view-mode {
+      background: transparent !important;
+      border-color: transparent !important;
+      border-bottom: 1.5px solid var(--border) !important;
+      border-radius: 0 !important;
+      padding-left: 2px !important;
+      color: var(--text) !important;
+      cursor: default;
+      font-weight: 500;
+    }
+    .field-row input.view-mode:focus {
+      box-shadow: none !important;
+      border-color: transparent !important;
+      border-bottom-color: var(--border) !important;
+    }
+    .field-row input.view-mode::placeholder { color: var(--text-faint); font-weight: 400; }
+
+    /* ─── Textarea ─── */
+    textarea {
+      width: 100%;
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 10px 12px;
+      font-size: 14px;
+      font-family: inherit;
+      resize: vertical;
+      min-height: 84px;
+      outline: none;
+      background: #f8fafc;
+      transition: border-color .18s, background .18s, box-shadow .18s;
+      color: var(--text);
+    }
+    textarea:focus {
+      border-color: var(--primary);
+      background: white;
+      box-shadow: 0 0 0 3px rgba(37,99,235,.1);
+    }
+
+    /* ─── Buttons ─── */
     .btn {
       display: inline-flex; align-items: center; gap: 6px;
-      padding: 9px 18px; border-radius: 8px; border: none;
-      font-size: 13px; font-weight: 600; cursor: pointer;
-      transition: opacity .15s, transform .1s;
+      padding: 9px 18px;
+      border-radius: var(--radius-sm);
+      border: none;
+      font-size: 13px;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      transition: background .18s, box-shadow .18s, transform .1s, opacity .15s;
+      letter-spacing: .1px;
     }
     .btn:active { transform: scale(.97); }
     .btn:disabled { opacity: .5; cursor: not-allowed; }
-    .btn-primary   { background: #2563eb; color: white; }
-    .btn-primary:hover:not(:disabled) { background: #1d4ed8; }
-    .btn-success   { background: #16a34a; color: white; }
-    .btn-success:hover:not(:disabled) { background: #15803d; }
-    .btn-ghost     { background: #f1f5f9; color: #475569; }
-    .btn-ghost:hover { background: #e2e8f0; }
-    .btn-danger    { background: #fee2e2; color: #b91c1c; }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+      color: white;
+      box-shadow: 0 2px 8px rgba(37,99,235,.3);
+    }
+    .btn-primary:hover:not(:disabled) {
+      background: linear-gradient(135deg, var(--primary-dark), #1e40af);
+      box-shadow: 0 4px 14px rgba(37,99,235,.4);
+    }
+    .btn-success {
+      background: linear-gradient(135deg, var(--success), var(--success-dark));
+      color: white;
+      box-shadow: 0 2px 8px rgba(16,185,129,.3);
+    }
+    .btn-success:hover:not(:disabled) {
+      background: linear-gradient(135deg, var(--success-dark), #047857);
+      box-shadow: 0 4px 14px rgba(16,185,129,.4);
+    }
+    .btn-ghost {
+      background: #f1f5f9;
+      color: var(--text-muted);
+      border: 1px solid var(--border);
+    }
+    .btn-ghost:hover { background: #e2e8f0; color: var(--text); }
+
+    .btn-warning {
+      background: linear-gradient(135deg, #f59e0b, #d97706);
+      color: white;
+      box-shadow: 0 2px 8px rgba(245,158,11,.3);
+    }
+    .btn-warning:hover:not(:disabled) {
+      background: linear-gradient(135deg, #d97706, #b45309);
+      box-shadow: 0 4px 14px rgba(245,158,11,.4);
+    }
+
+    .btn-danger { background: #fee2e2; color: var(--danger-dark); }
     .btn-danger:hover { background: #fecaca; }
-    .btn-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
 
-    /* ── Note editor ── */
-    textarea {
-      width: 100%; border: 1.5px solid #e2e8f0; border-radius: 8px;
-      padding: 10px 12px; font-size: 14px; resize: vertical;
-      min-height: 80px; font-family: inherit; outline: none;
-      background: #f8fafc; transition: border-color .15s;
-    }
-    textarea:focus { border-color: #3b82f6; background: white; }
+    .btn-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
 
-    /* ── Storico note ── */
-    .notes-list { display: flex; flex-direction: column; gap: 10px; }
-    .note-item {
-      background: #f8fafc;
-      border-left: 3px solid #3b82f6;
-      border-radius: 0 8px 8px 0;
-      padding: 10px 12px;
-      position: relative;
-    }
-    .note-item .note-meta {
-      font-size: 11px; color: #94a3b8; margin-bottom: 4px;
-      display: flex; justify-content: space-between; align-items: center;
-    }
-    .note-item .note-text { font-size: 13px; line-height: 1.5; white-space: pre-wrap; }
-    .note-item .btn-delete-note {
-      background: none; border: none; cursor: pointer;
-      color: #94a3b8; font-size: 14px; padding: 2px 4px;
-    }
-    .note-item .btn-delete-note:hover { color: #ef4444; }
-    .empty-notes { text-align: center; color: #94a3b8; font-size: 13px; padding: 20px 0; }
-
-    /* ── Note row (textarea + id tools) ── */
+    /* ─── Note row ─── */
     .note-row { display: flex; gap: 10px; align-items: flex-start; }
     .note-row textarea { flex: 1; }
-    .note-row .idtools-col { display: flex; flex-direction: column; gap: 4px; width: 140px; flex-shrink: 0; }
-    .note-row .idtools-col label { font-size: 11px; font-weight: 600; color: #94a3b8; text-transform: uppercase; }
-    .note-row .idtools-col input {
-      border: 1.5px solid #e2e8f0; border-radius: 8px;
-      padding: 9px 10px; font-size: 14px; color: #1e293b;
-      outline: none; background: #f8fafc; transition: border-color .15s;
+    .note-row .idtools-col { display: flex; flex-direction: column; gap: 5px; width: 138px; flex-shrink: 0; }
+    .note-row .idtools-col label {
+      font-size: 11px; font-weight: 600;
+      color: var(--text-muted); text-transform: uppercase; letter-spacing: .5px;
     }
-    .note-row .idtools-col input:focus { border-color: #3b82f6; background: white; }
+    .note-row .idtools-col input {
+      border: 1.5px solid var(--border); border-radius: var(--radius-sm);
+      padding: 9px 10px; font-size: 14px; font-family: inherit;
+      color: var(--text); outline: none;
+      background: #f8fafc; transition: border-color .18s, background .18s, box-shadow .18s;
+    }
+    .note-row .idtools-col input:focus {
+      border-color: var(--primary); background: white;
+      box-shadow: 0 0 0 3px rgba(37,99,235,.1);
+    }
 
-    /* ── Operator modal ── */
+    /* ─── Notes list ─── */
+    .notes-list { display: flex; flex-direction: column; gap: 10px; }
+
+    .note-item {
+      background: linear-gradient(135deg, #f8fafc 0%, #f0f4fb 100%);
+      border-left: 3px solid var(--primary);
+      border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+      padding: 11px 13px;
+      transition: transform .2s, box-shadow .2s;
+      animation: fadeSlideUp .3s ease both;
+    }
+    .note-item:hover {
+      transform: translateX(2px);
+      box-shadow: var(--shadow-sm);
+    }
+    .note-meta {
+      font-size: 11px; color: var(--text-faint);
+      margin-bottom: 5px;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .note-text { font-size: 13px; line-height: 1.6; white-space: pre-wrap; color: var(--text); }
+
+    .btn-delete-note {
+      background: none; border: none; cursor: pointer;
+      color: var(--text-faint); font-size: 14px; padding: 2px 4px;
+      border-radius: 4px; transition: color .15s, background .15s;
+    }
+    .btn-delete-note:hover { color: var(--danger); background: #fee2e2; }
+
+    .empty-notes {
+      text-align: center; color: var(--text-faint);
+      font-size: 13px; padding: 24px 0;
+    }
+    .empty-notes-icon { font-size: 28px; margin-bottom: 6px; opacity: .6; }
+
+    /* ─── ID badge ─── */
+    .id-badge {
+      display: inline-flex; align-items: center; gap: 4px;
+      margin-left: 8px;
+      background: var(--primary-light);
+      color: var(--primary);
+      border-radius: 5px;
+      padding: 1px 8px;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    /* ─── Operator modal ─── */
     #operator-modal {
       display: none; position: fixed; inset: 0;
-      background: rgba(0,0,0,0.45); z-index: 1000;
+      background: rgba(15,23,42,.5);
+      backdrop-filter: blur(4px);
+      z-index: 1000;
       align-items: center; justify-content: center;
     }
     #operator-modal.open { display: flex; }
+
     .modal-box {
-      background: white; border-radius: 14px; padding: 28px 24px;
-      width: 320px; box-shadow: 0 8px 40px rgba(0,0,0,0.2);
+      background: white; border-radius: 18px;
+      padding: 30px 26px;
+      width: 330px;
+      box-shadow: var(--shadow-lg);
+      animation: modalPop .25s cubic-bezier(.34,1.56,.64,1) both;
     }
-    .modal-box h3 { font-size: 15px; margin-bottom: 6px; color: #1e293b; }
-    .modal-box p  { font-size: 13px; color: #64748b; margin-bottom: 16px; }
-    .modal-box input {
-      width: 100%; border: 1.5px solid #e2e8f0; border-radius: 8px;
-      padding: 10px 12px; font-size: 14px; outline: none;
-      margin-bottom: 16px; background: #f8fafc; transition: border-color .15s;
+    @keyframes modalPop {
+      from { opacity: 0; transform: scale(.88); }
+      to   { opacity: 1; transform: scale(1); }
     }
-    .modal-box input:focus { border-color: #3b82f6; background: white; }
-    .modal-box input.err   { border-color: #ef4444; }
+    .modal-box h3 { font-size: 15px; margin-bottom: 5px; color: var(--text); }
+    .modal-box p  { font-size: 13px; color: var(--text-muted); margin-bottom: 18px; line-height: 1.5; }
+    .modal-box input { width: 100%; margin-bottom: 18px; }
+    .modal-box input.err { border-color: var(--danger); }
     .modal-btn-row { display: flex; gap: 8px; justify-content: flex-end; }
 
-    /* ── Toast ── */
+    /* ─── Toast ─── */
     #toast {
-      position: fixed; bottom: 20px; right: 20px;
-      background: #1e293b; color: white;
-      padding: 10px 16px; border-radius: 8px;
-      font-size: 13px; box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-      opacity: 0; transform: translateY(8px);
-      transition: opacity .25s, transform .25s;
+      position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(16px) scale(.95);
+      background: rgba(15,23,42,.92);
+      backdrop-filter: blur(12px);
+      color: white;
+      padding: 11px 20px;
+      border-radius: 30px;
+      font-size: 13px;
+      font-weight: 500;
+      box-shadow: 0 6px 24px rgba(0,0,0,.22);
+      opacity: 0;
+      transition: opacity .3s cubic-bezier(.4,0,.2,1), transform .3s cubic-bezier(.34,1.4,.64,1);
       pointer-events: none; z-index: 999;
+      white-space: nowrap;
     }
-    #toast.show { opacity: 1; transform: translateY(0); }
-    #toast.green { background: #15803d; }
-    #toast.red   { background: #b91c1c; }
+    #toast.show { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+    #toast.green { background: linear-gradient(135deg, #059669, #047857); }
+    #toast.red   { background: linear-gradient(135deg, var(--danger), var(--danger-dark)); }
+
+    /* ─── Animations ─── */
+    @keyframes fadeSlideDown {
+      from { opacity: 0; transform: translateY(-10px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes fadeSlideUp {
+      from { opacity: 0; transform: translateY(14px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ─── Auto-save banner ─── */
+    #autosave-banner {
+      display: none;
+      align-items: center;
+      gap: 12px;
+      background: linear-gradient(135deg, #ecfdf5, #d1fae5);
+      border: 1.5px solid #6ee7b7;
+      border-radius: var(--radius);
+      padding: 14px 18px;
+      margin-bottom: 16px;
+      animation: bannerSlide .5s cubic-bezier(.34,1.4,.64,1) both;
+      position: relative;
+      overflow: hidden;
+    }
+    #autosave-banner::before {
+      content: '';
+      position: absolute;
+      left: 0; top: 0; bottom: 0;
+      width: 4px;
+      background: linear-gradient(to bottom, var(--success), var(--success-dark));
+      border-radius: 4px 0 0 4px;
+    }
+    #autosave-banner.show { display: flex; }
+    .autosave-icon {
+      width: 36px; height: 36px; flex-shrink: 0;
+      background: linear-gradient(135deg, var(--success), var(--success-dark));
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 17px;
+      box-shadow: 0 2px 8px rgba(16,185,129,.35);
+    }
+    .autosave-text strong {
+      display: block; font-size: 13px; font-weight: 700; color: #065f46;
+    }
+    .autosave-text span {
+      font-size: 12px; color: #047857;
+    }
+    @keyframes bannerSlide {
+      from { opacity: 0; transform: translateY(-16px) scale(.97); }
+      to   { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    /* ─── Card entry animation ─── */
+    .card {
+      transition: box-shadow .3s cubic-bezier(.4,0,.2,1), transform .3s cubic-bezier(.4,0,.2,1);
+    }
+    .card:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 8px 28px rgba(37,99,235,.12), 0 2px 8px rgba(0,0,0,.06);
+    }
+
+    /* ─── Pulse on success ─── */
+    @keyframes successPulse {
+      0%   { box-shadow: 0 0 0 0 rgba(16,185,129,.4); }
+      70%  { box-shadow: 0 0 0 10px rgba(16,185,129,0); }
+      100% { box-shadow: 0 0 0 0 rgba(16,185,129,0); }
+    }
+    .pulse-success { animation: successPulse .6s ease; }
+
+    /* ─── Divider ─── */
+    .section-gap { height: 4px; }
   </style>
 </head>
 <body>
 
+<!-- ── Header ── -->
 <header>
-  <span class="logo">📞</span>
-  <h1>CRM 3CX</h1>
+  <div class="header-logo-wrap">
+    <img src="https://www.medeatelemedicina.com/wp-content/uploads/2024/06/Logo-MedEA-Telemedicina.svg"
+         alt="MedEA Telemedicina" onerror="this.style.display='none'">
+  </div>
   <span class="number-badge" id="header-number">—</span>
 </header>
 
+<!-- ── Main ── -->
 <div class="container">
 
-  <!-- Stato lookup -->
+  <!-- Auto-save banner -->
+  <div id="autosave-banner">
+    <div class="autosave-icon">📥</div>
+    <div class="autosave-text">
+      <strong>Contatto salvato automaticamente in rubrica</strong>
+      <span id="autosave-detail">Nome rilevato da Google e salvato per questo numero.</span>
+    </div>
+  </div>
+
+  <!-- Status lookup -->
   <div id="lookup-status" class="loading">
     <span class="spinner-sm"></span>
     <span id="lookup-msg">Ricerca in corso…</span>
   </div>
 
   <!-- Scheda contatto -->
-  <div class="card">
+  <div class="card" id="contact-card">
     <div class="card-title">📋 Scheda Cliente</div>
 
     <div class="field-row">
@@ -230,31 +570,50 @@
       <input type="text" id="f-notes" placeholder="Note sul cliente…">
     </div>
 
-    <div class="btn-row">
-      <button class="btn btn-primary" id="btn-save-contact" onclick="saveContact()">
+    <!-- Bottoni: stato VIEW (cliente trovato) -->
+    <div class="btn-row" id="btn-row-view" style="display:none;">
+      <button class="btn btn-warning" id="btn-edit-contact" onclick="enterEditMode()">
+        ✏️ Modifica
+      </button>
+    </div>
+
+    <!-- Bottoni: stato EDIT (modifica attiva) -->
+    <div class="btn-row" id="btn-row-edit" style="display:none;">
+      <button class="btn btn-success" id="btn-save-contact" onclick="saveContact()">
+        💾 Salva
+      </button>
+      <button class="btn btn-ghost" id="btn-reload-contact" onclick="reloadContact()">
+        🔄 Ricarica
+      </button>
+    </div>
+
+    <!-- Bottoni: stato NEW (cliente non trovato) -->
+    <div class="btn-row" id="btn-row-new">
+      <button class="btn btn-primary" id="btn-save-new" onclick="saveContact()">
         💾 Salva in rubrica
       </button>
-      <button class="btn btn-ghost" id="btn-reload" onclick="doLookup()" title="Ricarica da Google">
+      <button class="btn btn-ghost" onclick="doLookup()" title="Ricarica da Google">
         🔄 Ricarica da Google
       </button>
     </div>
+
   </div>
 
   <!-- Nuova nota assistenza -->
   <div class="card">
     <div class="card-title">🔧 Nuova nota assistenza</div>
     <div class="field-row">
-      <label>Operatore <span style="color:#ef4444">*</span></label>
+      <label>Operatore <span style="color:var(--danger)">*</span></label>
       <input type="text" id="f-operator" placeholder="Il tuo nome…" required>
     </div>
     <div class="note-row">
       <textarea id="f-note" placeholder="Descrivi l'intervento effettuato…"></textarea>
       <div class="idtools-col">
         <label>ID Tools</label>
-        <input type="text" id="f-idtools" placeholder="es. TK-4821…">
+        <input type="text" id="f-idtools" placeholder="es. 123">
       </div>
     </div>
-    <div class="btn-row" style="margin-top:10px">
+    <div class="btn-row" style="margin-top:12px">
       <button class="btn btn-success" onclick="saveNote()">✅ Salva nota</button>
     </div>
   </div>
@@ -263,7 +622,10 @@
   <div class="card">
     <div class="card-title">📂 Storico assistenze</div>
     <div class="notes-list" id="notes-list">
-      <div class="empty-notes">Nessuna nota salvata.</div>
+      <div class="empty-notes">
+        <div class="empty-notes-icon">📭</div>
+        Nessuna nota salvata.
+      </div>
     </div>
   </div>
 
@@ -292,89 +654,130 @@
 // ─────────────────────────────────────────────
 const params = new URLSearchParams(window.location.search);
 const rawNumber = params.get("number") || "";
-let currentContact = null; // dati da Supabase (o null)
+let currentContact = null;
+// 'new' | 'view' | 'edit'
+let contactUIState = 'new';
 
 document.getElementById("header-number").textContent = rawNumber || "Nessun numero";
 document.getElementById("f-number").value = rawNumber;
 
-// Supabase client
 const sb = supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
 
-// Traccia modifiche manuali
 ["f-name","f-address","f-notes"].forEach(id => {
   document.getElementById(id).addEventListener("input", function() {
-    this.classList.add("changed");
+    if (contactUIState === 'edit') this.classList.add("changed");
   });
 });
 
 // ─────────────────────────────────────────────
-// Avvio: carica da Supabase poi da Google
+// UI state management
+// ─────────────────────────────────────────────
+
+/**
+ * Imposta la UI della scheda contatto:
+ *  'new'  → cliente non trovato: campi editabili, bottoni "Salva in rubrica" + "Ricarica da Google"
+ *  'view' → cliente trovato, in sola lettura: bottone "Modifica"
+ *  'edit' → cliente trovato, in modifica: bottoni "Salva" + "Ricarica"
+ */
+function setContactState(state) {
+  contactUIState = state;
+  const editableIds = ["f-name","f-address","f-notes"];
+
+  // Reset tutte le btn-row
+  document.getElementById("btn-row-view").style.display = "none";
+  document.getElementById("btn-row-edit").style.display = "none";
+  document.getElementById("btn-row-new").style.display  = "none";
+
+  if (state === 'view') {
+    // Campi in sola lettura con stile display
+    editableIds.forEach(id => {
+      const el = document.getElementById(id);
+      el.setAttribute("readonly", "readonly");
+      el.classList.add("view-mode");
+      el.classList.remove("changed");
+    });
+    document.getElementById("btn-row-view").style.display = "";
+  } else if (state === 'edit') {
+    // Campi editabili
+    editableIds.forEach(id => {
+      const el = document.getElementById(id);
+      el.removeAttribute("readonly");
+      el.classList.remove("view-mode");
+    });
+    document.getElementById("btn-row-edit").style.display = "";
+    // Focus sul primo campo editabile
+    setTimeout(() => document.getElementById("f-name").focus(), 50);
+  } else {
+    // 'new': campi editabili, stile normale
+    editableIds.forEach(id => {
+      const el = document.getElementById(id);
+      el.removeAttribute("readonly");
+      el.classList.remove("view-mode");
+      el.classList.remove("changed");
+    });
+    document.getElementById("btn-row-new").style.display = "";
+  }
+}
+
+function enterEditMode() {
+  setContactState('edit');
+}
+
+async function reloadContact() {
+  // Ricarica i dati originali da Supabase e torna in view mode
+  if (currentContact) {
+    document.getElementById("f-name").value    = currentContact.name    || "";
+    document.getElementById("f-address").value = currentContact.address || "";
+    document.getElementById("f-notes").value   = currentContact.notes   || "";
+  }
+  setContactState('view');
+  toast("↩️ Modifiche annullate", "");
+}
+
 // ─────────────────────────────────────────────
 async function init() {
   if (!rawNumber) {
     setStatus("notfound", "⚠️ Nessun numero ricevuto da 3CX.");
+    setContactState('new');
     return;
   }
-
-  // Prima: controlla se è già in rubrica
   await loadContactFromSupabase();
-
-  // Se non trovato in rubrica: cerca su Google
   if (!currentContact) {
     await doLookup();
   } else {
     setStatus("found", "✅ Contatto trovato in rubrica");
+    setContactState('view');
   }
-
-  // Carica storico note
   await loadNotes();
 }
 
 // ─────────────────────────────────────────────
-// Supabase: carica contatto
-// ─────────────────────────────────────────────
 async function loadContactFromSupabase() {
   try {
     const { data, error } = await sb
-      .from("contacts")
-      .select("*")
-      .eq("number", rawNumber)
-      .maybeSingle();
-
+      .from("contacts").select("*")
+      .eq("number", rawNumber).maybeSingle();
     if (error) throw error;
-
     if (data) {
       currentContact = data;
       document.getElementById("f-name").value    = data.name    || "";
       document.getElementById("f-address").value = data.address || "";
       document.getElementById("f-notes").value   = data.notes   || "";
-      // Rimuovi marker "changed"
-      ["f-name","f-address","f-notes"].forEach(id =>
-        document.getElementById(id).classList.remove("changed")
-      );
     }
-  } catch(e) {
-    console.warn("Supabase load error:", e.message);
-  }
+  } catch(e) { console.warn("Supabase load error:", e.message); }
 }
 
-// ─────────────────────────────────────────────
-// Google Places Lookup via Worker
 // ─────────────────────────────────────────────
 async function doLookup() {
   if (!rawNumber) return;
   setStatus("loading", "🔍 Ricerca nome su Google…");
-
   try {
     const url = `${CONFIG.WORKER_LOOKUP_URL}?number=${encodeURIComponent(rawNumber)}`;
     const resp = await fetch(url);
     const data = await resp.json();
-
     if (data.found && data.name) {
-      // Popola solo se il campo è vuoto o non è stato modificato manualmente
       const nameField = document.getElementById("f-name");
       const addrField = document.getElementById("f-address");
-
       if (!nameField.value || nameField.value === (currentContact?.name || "")) {
         nameField.value = data.name;
         nameField.classList.remove("changed");
@@ -384,54 +787,58 @@ async function doLookup() {
         addrField.classList.remove("changed");
       }
       setStatus("found", `✅ Trovato su Google: ${data.name}`);
-
-      // AUTO-SAVE: se non è già in rubrica, salva automaticamente
       if (!currentContact) {
         await autoSaveFromGoogle({
           name:    document.getElementById("f-name").value.trim() || null,
           address: document.getElementById("f-address").value.trim() || null,
         });
       }
+      // Se trovato su Google e non avevamo già il contatto in DB, ora ce l'abbiamo
+      setContactState('view');
     } else {
       setStatus("notfound", "⚠️ Numero non trovato su Google (puoi inserire il nome manualmente)");
+      setContactState('new');
     }
   } catch(e) {
     setStatus("error", "❌ Errore connessione Worker: " + e.message);
+    setContactState('new');
   }
 }
 
-// ─────────────────────────────────────────────
-// Supabase: salvataggio automatico da Google
 // ─────────────────────────────────────────────
 async function autoSaveFromGoogle({ name, address }) {
-  const payload = {
-    number:  rawNumber,
-    name:    name    || null,
-    address: address || null,
-    notes:   null,
-  };
+  const payload = { number: rawNumber, name: name || null, address: address || null, notes: null };
   try {
-    const { error } = await sb
-      .from("contacts")
-      .upsert(payload, { onConflict: "number" });
+    const { error } = await sb.from("contacts").upsert(payload, { onConflict: "number" });
     if (error) throw error;
     currentContact = payload;
-    // Aggiorna i campi togliendo marker "changed"
-    ["f-name","f-address","f-notes"].forEach(id =>
-      document.getElementById(id).classList.remove("changed")
-    );
-    toast("📥 Contatto salvato automaticamente da Google", "green");
-  } catch(e) {
-    console.warn("Auto-save Google error:", e.message);
-  }
+    // Banner prominente
+    const banner = document.getElementById("autosave-banner");
+    const detail = document.getElementById("autosave-detail");
+    detail.textContent = name
+      ? `"${name}" rilevato da Google e salvato in rubrica.`
+      : "Numero salvato automaticamente in rubrica.";
+    banner.classList.add("show");
+    // Pulse sulla card
+    const card = document.getElementById("contact-card");
+    card && card.classList.add("pulse-success");
+    setTimeout(() => card && card.classList.remove("pulse-success"), 700);
+    // Nascondi banner dopo 5s
+    setTimeout(() => {
+      banner.style.transition = "opacity .5s, transform .5s";
+      banner.style.opacity = "0";
+      banner.style.transform = "translateY(-8px)";
+      setTimeout(() => { banner.classList.remove("show"); banner.style = ""; }, 500);
+    }, 5000);
+  } catch(e) { console.warn("Auto-save Google error:", e.message); }
 }
 
 // ─────────────────────────────────────────────
-// Supabase: salva/aggiorna contatto
-// ─────────────────────────────────────────────
 async function saveContact() {
-  const btn = document.getElementById("btn-save-contact");
-  btn.disabled = true;
+  const saveBtn = contactUIState === 'edit'
+    ? document.getElementById("btn-save-contact")
+    : document.getElementById("btn-save-new");
+  if (saveBtn) saveBtn.disabled = true;
 
   const payload = {
     number:  rawNumber,
@@ -439,82 +846,55 @@ async function saveContact() {
     address: document.getElementById("f-address").value.trim() || null,
     notes:   document.getElementById("f-notes").value.trim() || null,
   };
-
   try {
-    const { error } = await sb
-      .from("contacts")
-      .upsert(payload, { onConflict: "number" });
-
+    const { error } = await sb.from("contacts").upsert(payload, { onConflict: "number" });
     if (error) throw error;
-
-    ["f-name","f-address","f-notes"].forEach(id =>
-      document.getElementById(id).classList.remove("changed")
-    );
-    toast("✅ Contatto salvato in rubrica", "green");
     currentContact = payload;
+    toast("✅ Contatto salvato in rubrica", "green");
+    // Torna in view mode (sia che venisse da 'edit' che da 'new')
+    setContactState('view');
+    setStatus("found", "✅ Contatto salvato in rubrica");
   } catch(e) {
     toast("❌ Errore salvataggio: " + e.message, "red");
   } finally {
-    btn.disabled = false;
+    if (saveBtn) saveBtn.disabled = false;
   }
 }
 
-// ─────────────────────────────────────────────
-// Supabase: salva nota assistenza
 // ─────────────────────────────────────────────
 async function saveNote() {
   const noteText = document.getElementById("f-note").value.trim();
   if (!noteText) { toast("Scrivi una nota prima di salvare.", "red"); return; }
-
   const operator = document.getElementById("f-operator").value.trim();
-  if (!operator) {
-    // Apri il modal per inserire il nome operatore
-    showOperatorModal();
-    return;
-  }
-
+  if (!operator) { showOperatorModal(); return; }
   await doSaveNote(operator, noteText);
 }
 
 function showOperatorModal() {
-  const modal = document.getElementById("operator-modal");
-  modal.classList.add("open");
+  document.getElementById("operator-modal").classList.add("open");
   const inp = document.getElementById("modal-operator-input");
-  inp.value = "";
-  inp.classList.remove("err");
+  inp.value = ""; inp.classList.remove("err");
   setTimeout(() => inp.focus(), 100);
 }
-
 function closeOperatorModal() {
   document.getElementById("operator-modal").classList.remove("open");
 }
-
 async function confirmSaveNote() {
   const inp = document.getElementById("modal-operator-input");
   const op = inp.value.trim();
-  if (!op) {
-    inp.classList.add("err");
-    inp.focus();
-    return;
-  }
-  // Riporta il nome nel campo principale così rimane per la prossima nota
+  if (!op) { inp.classList.add("err"); inp.focus(); return; }
   document.getElementById("f-operator").value = op;
   closeOperatorModal();
-  const noteText = document.getElementById("f-note").value.trim();
-  await doSaveNote(op, noteText);
+  await doSaveNote(op, document.getElementById("f-note").value.trim());
 }
 
 async function doSaveNote(operator, noteText) {
   const idTools = document.getElementById("f-idtools").value.trim() || null;
   try {
     const { error } = await sb.from("call_notes").insert({
-      number:   rawNumber,
-      operator: operator,
-      note:     noteText,
-      id_tools: idTools,
+      number: rawNumber, operator, note: noteText, id_tools: idTools,
     });
     if (error) throw error;
-
     document.getElementById("f-note").value = "";
     document.getElementById("f-idtools").value = "";
     toast("✅ Nota salvata", "green");
@@ -525,30 +905,22 @@ async function doSaveNote(operator, noteText) {
 }
 
 // ─────────────────────────────────────────────
-// Supabase: carica storico note
-// ─────────────────────────────────────────────
 async function loadNotes() {
   const container = document.getElementById("notes-list");
-  container.innerHTML = '<div class="empty-notes">Caricamento…</div>';
-
+  container.innerHTML = '<div class="empty-notes"><div class="empty-notes-icon">⏳</div>Caricamento…</div>';
   try {
-    const { data, error } = await sb
-      .from("call_notes")
-      .select("*")
-      .eq("number", rawNumber)
-      .order("call_date", { ascending: false });
-
+    const { data, error } = await sb.from("call_notes").select("*")
+      .eq("number", rawNumber).order("call_date", { ascending: false });
     if (error) throw error;
-
     if (!data || data.length === 0) {
-      container.innerHTML = '<div class="empty-notes">Nessuna nota salvata per questo numero.</div>';
+      container.innerHTML = '<div class="empty-notes"><div class="empty-notes-icon">📭</div>Nessuna nota salvata per questo numero.</div>';
       return;
     }
-
     container.innerHTML = data.map(n => {
       const dt = new Date(n.call_date).toLocaleString("it-IT");
       const op = n.operator ? `<strong>${escHtml(n.operator)}</strong> · ` : "";
-      const idtag = n.id_tools ? `<span style="margin-left:8px;background:#eff6ff;color:#1d4ed8;border-radius:4px;padding:1px 7px;font-size:11px;font-weight:600;">🔧 ${escHtml(n.id_tools)}</span>` : "";
+      const idtag = n.id_tools
+        ? `<span class="id-badge">🔧 ${escHtml(n.id_tools)}</span>` : "";
       return `
         <div class="note-item" data-id="${n.id}">
           <div class="note-meta">
@@ -559,12 +931,10 @@ async function loadNotes() {
         </div>`;
     }).join("");
   } catch(e) {
-    container.innerHTML = `<div class="empty-notes" style="color:#ef4444">Errore caricamento: ${escHtml(e.message)}</div>`;
+    container.innerHTML = `<div class="empty-notes" style="color:var(--danger)">Errore: ${escHtml(e.message)}</div>`;
   }
 }
 
-// ─────────────────────────────────────────────
-// Supabase: elimina nota
 // ─────────────────────────────────────────────
 async function deleteNote(id) {
   if (!confirm("Eliminare questa nota?")) return;
@@ -579,14 +949,10 @@ async function deleteNote(id) {
 }
 
 // ─────────────────────────────────────────────
-// Helpers
-// ─────────────────────────────────────────────
 function setStatus(type, msg) {
   const el = document.getElementById("lookup-status");
-  const msgEl = document.getElementById("lookup-msg");
   el.className = type;
-  msgEl.textContent = msg;
-  // Rimuovi spinner se non loading
+  document.getElementById("lookup-msg").textContent = msg;
   const spinner = el.querySelector(".spinner-sm");
   if (spinner) spinner.style.display = type === "loading" ? "block" : "none";
 }
@@ -606,7 +972,6 @@ function escHtml(str) {
     .replace(/>/g,"&gt;").replace(/"/g,"&quot;");
 }
 
-// Avvia
 init();
 </script>
 </body>
