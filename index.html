@@ -518,6 +518,94 @@
 
     /* ─── Divider ─── */
     .section-gap { height: 4px; }
+
+    /* ─── Call stats ─── */
+    .call-stats-divider {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 14px 0 10px;
+    }
+    .call-stats-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .call-stats-label {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 11.5px;
+      color: var(--text-faint);
+      font-weight: 500;
+    }
+    .call-stats-count {
+      font-weight: 700;
+      color: var(--text-muted);
+      font-size: 12px;
+      background: #f1f5f9;
+      border-radius: 20px;
+      padding: 1px 9px;
+    }
+    .call-stats-toggle {
+      background: none;
+      border: none;
+      font-size: 11px;
+      color: var(--primary);
+      cursor: pointer;
+      padding: 2px 4px;
+      border-radius: 4px;
+      font-weight: 500;
+      transition: background .15s;
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+    .call-stats-toggle:hover { background: var(--primary-light); }
+
+    /* Storico mesi */
+    .call-history-months {
+      margin-top: 8px;
+      display: none;
+      flex-direction: column;
+      gap: 4px;
+      animation: fadeSlideUp .2s ease both;
+    }
+    .call-history-months.open { display: flex; }
+    .call-month-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 4px 8px;
+      border-radius: 6px;
+      background: #f8fafc;
+      font-size: 11.5px;
+    }
+    .call-month-label { color: var(--text-muted); }
+    .call-month-count {
+      font-weight: 700;
+      color: var(--text-muted);
+      font-size: 11px;
+      background: #e2e8f0;
+      border-radius: 20px;
+      padding: 1px 8px;
+    }
+
+    /* ─── Today warning ─── */
+    .today-call-warning {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: linear-gradient(135deg, #fff7ed, #ffedd5);
+      border: 1.5px solid #fed7aa;
+      border-radius: var(--radius-sm);
+      padding: 9px 13px;
+      margin-bottom: 14px;
+      font-size: 12.5px;
+      font-weight: 600;
+      color: #9a3412;
+      animation: fadeSlideDown .35s ease both;
+    }
+    .today-call-warning-icon { font-size: 15px; flex-shrink: 0; }
   </style>
 </head>
 <body>
@@ -570,6 +658,12 @@
       <input type="text" id="f-notes" placeholder="Note sul cliente…">
     </div>
 
+    <!-- Avviso chiamate multiple oggi (solo se trovato) -->
+    <div class="today-call-warning" id="today-warning" style="display:none;">
+      <span class="today-call-warning-icon">⚠️</span>
+      <span>Il cliente ha chiamato anche altre volte durante la giornata</span>
+    </div>
+
     <!-- Bottoni: stato VIEW (cliente trovato) -->
     <div class="btn-row" id="btn-row-view" style="display:none;">
       <button class="btn btn-warning" id="btn-edit-contact" onclick="enterEditMode()">
@@ -585,6 +679,21 @@
       <button class="btn btn-ghost" id="btn-reload-contact" onclick="reloadContact()">
         🔄 Ricarica
       </button>
+    </div>
+
+    <!-- Statistiche chiamate (solo se trovato) -->
+    <div id="call-stats-section" style="display:none;">
+      <hr class="call-stats-divider">
+      <div class="call-stats-row">
+        <span class="call-stats-label">
+          📞 Chiamate questo mese:
+          <span class="call-stats-count" id="calls-this-month">–</span>
+        </span>
+        <button class="call-stats-toggle" id="toggle-history-btn" onclick="toggleCallHistory()">
+          storico ▾
+        </button>
+      </div>
+      <div class="call-history-months" id="call-history-months"></div>
     </div>
 
     <!-- Bottoni: stato NEW (cliente non trovato) -->
@@ -747,6 +856,8 @@ async function init() {
   } else {
     setStatus("found", "✅ Contatto trovato in rubrica");
     setContactState('view');
+    await logCall();
+    await loadCallStats();
   }
   await loadNotes();
 }
@@ -795,6 +906,8 @@ async function doLookup() {
       }
       // Se trovato su Google e non avevamo già il contatto in DB, ora ce l'abbiamo
       setContactState('view');
+      await logCall();
+      await loadCallStats();
     } else {
       setStatus("notfound", "⚠️ Numero non trovato su Google (puoi inserire il nome manualmente)");
       setContactState('new');
@@ -910,7 +1023,9 @@ async function loadNotes() {
   container.innerHTML = '<div class="empty-notes"><div class="empty-notes-icon">⏳</div>Caricamento…</div>';
   try {
     const { data, error } = await sb.from("call_notes").select("*")
-      .eq("number", rawNumber).order("call_date", { ascending: false });
+      .eq("number", rawNumber)
+      .or("is_auto_log.is.null,is_auto_log.eq.false")
+      .order("call_date", { ascending: false });
     if (error) throw error;
     if (!data || data.length === 0) {
       container.innerHTML = '<div class="empty-notes"><div class="empty-notes-icon">📭</div>Nessuna nota salvata per questo numero.</div>';
@@ -933,6 +1048,105 @@ async function loadNotes() {
   } catch(e) {
     container.innerHTML = `<div class="empty-notes" style="color:var(--danger)">Errore: ${escHtml(e.message)}</div>`;
   }
+}
+
+// ─────────────────────────────────────────────
+// Call statistics (solo per clienti trovati)
+// ─────────────────────────────────────────────
+
+let _callHistoryOpen = false;
+
+/**
+ * Registra automaticamente la chiamata inserendo un record "silenzioso"
+ * in call_notes con is_auto_log = true.
+ * Richiede: ALTER TABLE call_notes ADD COLUMN IF NOT EXISTS is_auto_log BOOLEAN DEFAULT FALSE;
+ */
+async function logCall() {
+  try {
+    await sb.from("call_notes").insert({
+      number: rawNumber,
+      operator: null,
+      note: null,
+      id_tools: null,
+      is_auto_log: true,
+    });
+  } catch(e) {
+    console.warn("logCall error:", e.message);
+  }
+}
+
+async function loadCallStats() {
+  try {
+    const { data, error } = await sb
+      .from("call_notes")
+      .select("call_date")
+      .eq("number", rawNumber)
+      .order("call_date", { ascending: false });
+    if (error) throw error;
+    if (!data || data.length === 0) {
+      document.getElementById("calls-this-month").textContent = "0";
+      document.getElementById("call-stats-section").style.display = "";
+      return;
+    }
+
+    const now = new Date();
+    const todayStr = now.toLocaleDateString("it-IT"); // dd/mm/yyyy
+    const thisYear = now.getFullYear();
+    const thisMonth = now.getMonth(); // 0-based
+
+    let todayCount = 0;
+    let thisMonthCount = 0;
+    // {key: "Mese YYYY" -> count}
+    const prevMonths = {};
+
+    data.forEach(row => {
+      const d = new Date(row.call_date);
+      const dStr = d.toLocaleDateString("it-IT");
+      if (dStr === todayStr) todayCount++;
+
+      if (d.getFullYear() === thisYear && d.getMonth() === thisMonth) {
+        thisMonthCount++;
+      } else {
+        // Mese precedente
+        const key = d.toLocaleDateString("it-IT", { month: "long", year: "numeric" });
+        prevMonths[key] = (prevMonths[key] || 0) + 1;
+      }
+    });
+
+    // Avviso chiamate multiple oggi
+    if (todayCount > 1) {
+      document.getElementById("today-warning").style.display = "";
+    }
+
+    // Contatore mese corrente
+    document.getElementById("calls-this-month").textContent = thisMonthCount;
+
+    // Storico mesi precedenti
+    const historyEl = document.getElementById("call-history-months");
+    const keys = Object.keys(prevMonths);
+    if (keys.length === 0) {
+      document.getElementById("toggle-history-btn").style.display = "none";
+      historyEl.innerHTML = "";
+    } else {
+      historyEl.innerHTML = keys.map(k => `
+        <div class="call-month-row">
+          <span class="call-month-label">${escHtml(k.charAt(0).toUpperCase() + k.slice(1))}</span>
+          <span class="call-month-count">${prevMonths[k]}</span>
+        </div>`).join("");
+    }
+
+    document.getElementById("call-stats-section").style.display = "";
+  } catch(e) {
+    console.warn("Errore loadCallStats:", e.message);
+  }
+}
+
+function toggleCallHistory() {
+  _callHistoryOpen = !_callHistoryOpen;
+  const el = document.getElementById("call-history-months");
+  const btn = document.getElementById("toggle-history-btn");
+  el.classList.toggle("open", _callHistoryOpen);
+  btn.textContent = _callHistoryOpen ? "storico ▴" : "storico ▾";
 }
 
 // ─────────────────────────────────────────────
