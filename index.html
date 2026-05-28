@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="it">
 <head>
@@ -143,6 +144,40 @@
     .note-item .btn-delete-note:hover { color: #ef4444; }
     .empty-notes { text-align: center; color: #94a3b8; font-size: 13px; padding: 20px 0; }
 
+    /* ── Note row (textarea + id tools) ── */
+    .note-row { display: flex; gap: 10px; align-items: flex-start; }
+    .note-row textarea { flex: 1; }
+    .note-row .idtools-col { display: flex; flex-direction: column; gap: 4px; width: 140px; flex-shrink: 0; }
+    .note-row .idtools-col label { font-size: 11px; font-weight: 600; color: #94a3b8; text-transform: uppercase; }
+    .note-row .idtools-col input {
+      border: 1.5px solid #e2e8f0; border-radius: 8px;
+      padding: 9px 10px; font-size: 14px; color: #1e293b;
+      outline: none; background: #f8fafc; transition: border-color .15s;
+    }
+    .note-row .idtools-col input:focus { border-color: #3b82f6; background: white; }
+
+    /* ── Operator modal ── */
+    #operator-modal {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.45); z-index: 1000;
+      align-items: center; justify-content: center;
+    }
+    #operator-modal.open { display: flex; }
+    .modal-box {
+      background: white; border-radius: 14px; padding: 28px 24px;
+      width: 320px; box-shadow: 0 8px 40px rgba(0,0,0,0.2);
+    }
+    .modal-box h3 { font-size: 15px; margin-bottom: 6px; color: #1e293b; }
+    .modal-box p  { font-size: 13px; color: #64748b; margin-bottom: 16px; }
+    .modal-box input {
+      width: 100%; border: 1.5px solid #e2e8f0; border-radius: 8px;
+      padding: 10px 12px; font-size: 14px; outline: none;
+      margin-bottom: 16px; background: #f8fafc; transition: border-color .15s;
+    }
+    .modal-box input:focus { border-color: #3b82f6; background: white; }
+    .modal-box input.err   { border-color: #ef4444; }
+    .modal-btn-row { display: flex; gap: 8px; justify-content: flex-end; }
+
     /* ── Toast ── */
     #toast {
       position: fixed; bottom: 20px; right: 20px;
@@ -212,7 +247,13 @@
       <label>Operatore <span style="color:#ef4444">*</span></label>
       <input type="text" id="f-operator" placeholder="Il tuo nome…" required>
     </div>
-    <textarea id="f-note" placeholder="Descrivi l'intervento effettuato…"></textarea>
+    <div class="note-row">
+      <textarea id="f-note" placeholder="Descrivi l'intervento effettuato…"></textarea>
+      <div class="idtools-col">
+        <label>ID Tools</label>
+        <input type="text" id="f-idtools" placeholder="es. TK-4821…">
+      </div>
+    </div>
     <div class="btn-row" style="margin-top:10px">
       <button class="btn btn-success" onclick="saveNote()">✅ Salva nota</button>
     </div>
@@ -226,6 +267,20 @@
     </div>
   </div>
 
+</div>
+
+<!-- Modal operatore -->
+<div id="operator-modal">
+  <div class="modal-box">
+    <h3>👤 Chi stai salvando la nota?</h3>
+    <p>Inserisci il tuo nome per procedere con il salvataggio.</p>
+    <input type="text" id="modal-operator-input" placeholder="Il tuo nome…"
+           onkeydown="if(event.key==='Enter') confirmSaveNote()">
+    <div class="modal-btn-row">
+      <button class="btn btn-ghost" onclick="closeOperatorModal()">Annulla</button>
+      <button class="btn btn-success" onclick="confirmSaveNote()">✅ Salva nota</button>
+    </div>
+  </div>
 </div>
 
 <!-- Toast -->
@@ -329,11 +384,45 @@ async function doLookup() {
         addrField.classList.remove("changed");
       }
       setStatus("found", `✅ Trovato su Google: ${data.name}`);
+
+      // AUTO-SAVE: se non è già in rubrica, salva automaticamente
+      if (!currentContact) {
+        await autoSaveFromGoogle({
+          name:    document.getElementById("f-name").value.trim() || null,
+          address: document.getElementById("f-address").value.trim() || null,
+        });
+      }
     } else {
       setStatus("notfound", "⚠️ Numero non trovato su Google (puoi inserire il nome manualmente)");
     }
   } catch(e) {
     setStatus("error", "❌ Errore connessione Worker: " + e.message);
+  }
+}
+
+// ─────────────────────────────────────────────
+// Supabase: salvataggio automatico da Google
+// ─────────────────────────────────────────────
+async function autoSaveFromGoogle({ name, address }) {
+  const payload = {
+    number:  rawNumber,
+    name:    name    || null,
+    address: address || null,
+    notes:   null,
+  };
+  try {
+    const { error } = await sb
+      .from("contacts")
+      .upsert(payload, { onConflict: "number" });
+    if (error) throw error;
+    currentContact = payload;
+    // Aggiorna i campi togliendo marker "changed"
+    ["f-name","f-address","f-notes"].forEach(id =>
+      document.getElementById(id).classList.remove("changed")
+    );
+    toast("📥 Contatto salvato automaticamente da Google", "green");
+  } catch(e) {
+    console.warn("Auto-save Google error:", e.message);
   }
 }
 
@@ -379,23 +468,55 @@ async function saveNote() {
 
   const operator = document.getElementById("f-operator").value.trim();
   if (!operator) {
-    const field = document.getElementById("f-operator");
-    field.style.borderColor = "#ef4444";
-    field.focus();
-    toast("⚠️ Il nome dell'operatore è obbligatorio.", "red");
-    setTimeout(() => { field.style.borderColor = ""; }, 2000);
+    // Apri il modal per inserire il nome operatore
+    showOperatorModal();
     return;
   }
 
+  await doSaveNote(operator, noteText);
+}
+
+function showOperatorModal() {
+  const modal = document.getElementById("operator-modal");
+  modal.classList.add("open");
+  const inp = document.getElementById("modal-operator-input");
+  inp.value = "";
+  inp.classList.remove("err");
+  setTimeout(() => inp.focus(), 100);
+}
+
+function closeOperatorModal() {
+  document.getElementById("operator-modal").classList.remove("open");
+}
+
+async function confirmSaveNote() {
+  const inp = document.getElementById("modal-operator-input");
+  const op = inp.value.trim();
+  if (!op) {
+    inp.classList.add("err");
+    inp.focus();
+    return;
+  }
+  // Riporta il nome nel campo principale così rimane per la prossima nota
+  document.getElementById("f-operator").value = op;
+  closeOperatorModal();
+  const noteText = document.getElementById("f-note").value.trim();
+  await doSaveNote(op, noteText);
+}
+
+async function doSaveNote(operator, noteText) {
+  const idTools = document.getElementById("f-idtools").value.trim() || null;
   try {
     const { error } = await sb.from("call_notes").insert({
       number:   rawNumber,
       operator: operator,
       note:     noteText,
+      id_tools: idTools,
     });
     if (error) throw error;
 
     document.getElementById("f-note").value = "";
+    document.getElementById("f-idtools").value = "";
     toast("✅ Nota salvata", "green");
     await loadNotes();
   } catch(e) {
@@ -427,10 +548,11 @@ async function loadNotes() {
     container.innerHTML = data.map(n => {
       const dt = new Date(n.call_date).toLocaleString("it-IT");
       const op = n.operator ? `<strong>${escHtml(n.operator)}</strong> · ` : "";
+      const idtag = n.id_tools ? `<span style="margin-left:8px;background:#eff6ff;color:#1d4ed8;border-radius:4px;padding:1px 7px;font-size:11px;font-weight:600;">🔧 ${escHtml(n.id_tools)}</span>` : "";
       return `
         <div class="note-item" data-id="${n.id}">
           <div class="note-meta">
-            <span>${op}${dt}</span>
+            <span>${op}${dt}${idtag}</span>
             <button class="btn-delete-note" onclick="deleteNote(${n.id})" title="Elimina nota">🗑️</button>
           </div>
           <div class="note-text">${escHtml(n.note)}</div>
