@@ -2,6 +2,30 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
+
+  <!-- 3CX popup handler: resize BEFORE paint to avoid flash -->
+  <script>
+    (function () {
+      try {
+        var isPopup =
+          window.opener !== null ||           // aperto da window.open()
+          window.name !== "" ||               // ha un nome (3CX lo imposta)
+          window.outerWidth < 200 ||          // finestra minima (prima del resize)
+          /[?&]number=/.test(location.search); // URL contiene ?number= (screen pop 3CX)
+
+        if (isPopup) {
+          var W = 720, H = 940;
+          // Centra la finestra nello schermo
+          var left = Math.max(0, Math.round((screen.availWidth  - W) / 2));
+          var top  = Math.max(0, Math.round((screen.availHeight - H) / 2));
+          window.resizeTo(W, H);
+          window.moveTo(left, top);
+          window.focus();
+        }
+      } catch (e) { /* silent */ }
+    })();
+  </script>
+
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>CRM 3CX</title>
@@ -69,7 +93,8 @@
 
     /* ─── Header ─── */
     header {
-      position: relative;
+      position: sticky;
+      top: 0;
       background: #ffffff;
       padding: 14px 20px 14px;
       text-align: center;
@@ -134,8 +159,8 @@
 
     /* ─── Container ─── */
     .container {
-      padding: 20px 16px 32px;
-      max-width: 620px;
+      padding: 20px 16px 40px;
+      max-width: 680px;
       margin: 0 auto;
       position: relative;
       z-index: 1;
@@ -182,6 +207,55 @@
     .card:nth-child(2) { animation-delay: .05s; }
     .card:nth-child(3) { animation-delay: .10s; }
     .card:nth-child(4) { animation-delay: .15s; }
+
+
+    /* ─── 2-column field grid ─── */
+    .fields-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0 14px;
+    }
+    .fields-grid .field-row.full { grid-column: 1 / -1; }
+
+    /* ─── Prev-assist button ─── */
+    #prev-assist-btn {
+      display: none;
+      width: 100%;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      background: linear-gradient(135deg, #eff6ff, #dbeafe);
+      border: 1.5px solid #bfdbfe;
+      border-radius: var(--radius-sm);
+      padding: 9px 16px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--primary);
+      cursor: pointer;
+      font-family: inherit;
+      margin-bottom: 14px;
+      transition: background .18s, box-shadow .18s;
+      animation: fadeSlideDown .35s ease both;
+    }
+    #prev-assist-btn:hover {
+      background: linear-gradient(135deg, #dbeafe, #bfdbfe);
+      box-shadow: 0 2px 10px rgba(37,99,235,.18);
+    }
+    #prev-assist-btn.visible { display: flex; }
+    .prev-btn-pulse {
+      width: 8px; height: 8px;
+      background: var(--primary);
+      border-radius: 50%;
+      animation: pulseDot 1.4s ease infinite;
+    }
+    @keyframes pulseDot {
+      0%,100% { transform: scale(1); opacity: 1; }
+      50%      { transform: scale(1.5); opacity: .5; }
+    }
+
+    /* ─── Btn-row alignment ─── */
+    .btn-row.right { justify-content: flex-end; }
+    .btn-row.between { justify-content: space-between; align-items: center; }
 
     .card-title {
       font-size: 11px;
@@ -631,6 +705,12 @@
     </div>
   </div>
 
+  <!-- Prev assist button -->
+  <button id="prev-assist-btn" onclick="scrollToNotes()">
+    <span class="prev-btn-pulse"></span>
+    📋 Visualizza assistenza precedente
+  </button>
+
   <!-- Status lookup -->
   <div id="lookup-status" class="loading">
     <span class="spinner-sm"></span>
@@ -641,21 +721,23 @@
   <div class="card" id="contact-card">
     <div class="card-title">📋 Scheda Cliente</div>
 
-    <div class="field-row">
-      <label>Numero</label>
-      <input type="text" id="f-number" readonly>
-    </div>
-    <div class="field-row">
-      <label>Nome</label>
-      <input type="text" id="f-name" placeholder="Nome cliente…">
-    </div>
-    <div class="field-row">
-      <label>Indirizzo</label>
-      <input type="text" id="f-address" placeholder="Indirizzo…">
-    </div>
-    <div class="field-row">
-      <label>Note generali</label>
-      <input type="text" id="f-notes" placeholder="Note sul cliente…">
+    <div class="fields-grid">
+      <div class="field-row">
+        <label>Numero</label>
+        <input type="text" id="f-number" readonly>
+      </div>
+      <div class="field-row">
+        <label>Nome</label>
+        <input type="text" id="f-name" placeholder="Nome cliente…">
+      </div>
+      <div class="field-row full">
+        <label>Indirizzo</label>
+        <input type="text" id="f-address" placeholder="Indirizzo…">
+      </div>
+      <div class="field-row full">
+        <label>Note generali</label>
+        <input type="text" id="f-notes" placeholder="Note sul cliente…">
+      </div>
     </div>
 
     <!-- Avviso chiamate multiple oggi (solo se trovato) -->
@@ -665,14 +747,14 @@
     </div>
 
     <!-- Bottoni: stato VIEW (cliente trovato) -->
-    <div class="btn-row" id="btn-row-view" style="display:none;">
+    <div class="btn-row right" id="btn-row-view" style="display:none;">
       <button class="btn btn-warning" id="btn-edit-contact" onclick="enterEditMode()">
         ✏️ Modifica
       </button>
     </div>
 
     <!-- Bottoni: stato EDIT (modifica attiva) -->
-    <div class="btn-row" id="btn-row-edit" style="display:none;">
+    <div class="btn-row right" id="btn-row-edit" style="display:none;">
       <button class="btn btn-success" id="btn-save-contact" onclick="saveContact()">
         💾 Salva
       </button>
@@ -697,7 +779,7 @@
     </div>
 
     <!-- Bottoni: stato NEW (cliente non trovato) -->
-    <div class="btn-row" id="btn-row-new" style="display:none;">
+    <div class="btn-row" id="btn-row-new">
       <button class="btn btn-primary" id="btn-save-new" onclick="saveContact()">
         💾 Salva in rubrica
       </button>
@@ -850,10 +932,6 @@ async function init() {
     setContactState('new');
     return;
   }
-  // Nessun bottone visibile durante il caricamento
-  document.getElementById("btn-row-view").style.display = "none";
-  document.getElementById("btn-row-edit").style.display = "none";
-  document.getElementById("btn-row-new").style.display  = "none";
   await loadContactFromSupabase();
   if (!currentContact) {
     await doLookup();
@@ -1025,6 +1103,7 @@ async function doSaveNote(operator, noteText) {
 async function loadNotes() {
   const container = document.getElementById("notes-list");
   container.innerHTML = '<div class="empty-notes"><div class="empty-notes-icon">⏳</div>Caricamento…</div>';
+  document.getElementById('prev-assist-btn').classList.remove('visible');
   try {
     const { data, error } = await sb.from("call_notes").select("*")
       .eq("number", rawNumber)
@@ -1032,8 +1111,10 @@ async function loadNotes() {
     if (error) throw error;
     if (!data || data.length === 0) {
       container.innerHTML = '<div class="empty-notes"><div class="empty-notes-icon">📭</div>Nessuna nota salvata per questo numero.</div>';
+      document.getElementById('prev-assist-btn').classList.remove('visible');
       return;
     }
+    document.getElementById('prev-assist-btn').classList.add('visible');
     container.innerHTML = data.map(n => {
       const dt = new Date(n.call_date).toLocaleString("it-IT");
       const op = n.operator ? `<strong>${escHtml(n.operator)}</strong> · ` : "";
@@ -1189,7 +1270,26 @@ function escHtml(str) {
     .replace(/>/g,"&gt;").replace(/"/g,"&quot;");
 }
 
+function scrollToNotes() {
+  const notesCard = document.querySelector('.card:last-of-type');
+  if (!notesCard) return;
+  notesCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  notesCard.style.transition = 'box-shadow .3s';
+  notesCard.style.boxShadow = '0 0 0 3px rgba(37,99,235,.35), 0 8px 28px rgba(37,99,235,.15)';
+  setTimeout(() => { notesCard.style.boxShadow = ''; }, 1600);
+}
+
 init();
+
+// ── 3CX: porta la finestra in primo piano quando il numero è pronto ──
+(function() {
+  try {
+    if (window.opener !== null || window.name !== "" || /[?&]number=/.test(location.search)) {
+      window.focus();
+    }
+  } catch(e) {}
+})();
+
 </script>
 </body>
 </html>
