@@ -943,12 +943,25 @@
 // ─────────────────────────────────────────────
 const params = new URLSearchParams(window.location.search);
 const rawNumber = params.get("number") || "";
+const rawAgent  = params.get("agent")  || "";   // operatore passato da 3CX
 let currentContact = null;
 // 'new' | 'view' | 'edit'
 let contactUIState = 'new';
 
 document.getElementById("header-number").textContent = rawNumber || "Nessun numero";
 document.getElementById("f-number").value = rawNumber;
+
+// Pre-compila il campo operatore se 3CX ha passato il parametro ?agent=
+if (rawAgent) {
+  const opField = document.getElementById("f-operator");
+  if (opField) {
+    opField.value = rawAgent;
+    opField.setAttribute("readonly", "readonly");
+    opField.style.background = "var(--primary-light)";
+    opField.style.color      = "var(--primary)";
+    opField.title = "Operatore impostato automaticamente da 3CX";
+  }
+}
 
 const sb = supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
 
@@ -1290,13 +1303,20 @@ let _callHistoryOpen = false;
  *   CREATE TABLE IF NOT EXISTS call_log (
  *     id        BIGSERIAL PRIMARY KEY,
  *     number    TEXT NOT NULL,
+ *     operator  TEXT,
  *     called_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
  *   );
  *   CREATE INDEX IF NOT EXISTS idx_call_log_number ON call_log(number);
+ *
+ *   -- Se la tabella esiste già, aggiungi la colonna operator:
+ *   ALTER TABLE call_log ADD COLUMN IF NOT EXISTS operator TEXT;
  */
 async function logCall() {
   try {
-    const { error } = await sb.from("call_log").insert({ number: rawNumber });
+    const { error } = await sb.from("call_log").insert({
+      number:   rawNumber,
+      operator: rawAgent || null,
+    });
     if (error) throw error;
   } catch(e) {
     console.warn("logCall error:", e.message);
