@@ -985,8 +985,13 @@ function setContactState(state) {
       el.classList.add("view-mode");
       el.classList.remove("changed");
     });
+    // Mostra hero card, nascondi griglia
+    _showContactHero();
     document.getElementById("btn-row-view").style.display = "";
   } else if (state === 'edit') {
+    // Nascondi hero, mostra griglia
+    document.getElementById("contact-hero").classList.remove("active");
+    document.getElementById("fields-grid").style.display = "";
     // Campi editabili
     editableIds.forEach(id => {
       const el = document.getElementById(id);
@@ -997,7 +1002,9 @@ function setContactState(state) {
     // Focus sul primo campo editabile
     setTimeout(() => document.getElementById("f-name").focus(), 50);
   } else {
-    // 'new': campi editabili, stile normale
+    // 'new': nascondi hero, mostra griglia
+    document.getElementById("contact-hero").classList.remove("active");
+    document.getElementById("fields-grid").style.display = "";
     editableIds.forEach(id => {
       const el = document.getElementById(id);
       el.removeAttribute("readonly");
