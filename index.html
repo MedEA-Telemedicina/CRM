@@ -1,4 +1,5 @@
 
+
 <!DOCTYPE html>
 <html lang="it">
 <head>
@@ -681,6 +682,73 @@
     }
     .today-call-warning-icon { font-size: 15px; flex-shrink: 0; }
 
+    /* ─── MedEA 3 badge ─── */
+    .medea3-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      background: linear-gradient(135deg, #dcfce7, #bbf7d0);
+      border: 1.5px solid #86efac;
+      color: #15803d;
+      border-radius: 20px;
+      padding: 4px 14px;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: .3px;
+      box-shadow: 0 1px 6px rgba(16,185,129,.18);
+      animation: fadeSlideDown .35s ease both;
+    }
+    .medea3-badge .medea3-dot {
+      width: 7px; height: 7px;
+      background: #16a34a;
+      border-radius: 50%;
+      animation: pulseDot 1.6s ease infinite;
+    }
+
+    /* ─── Toggle switch (usa medea3) ─── */
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 13px;
+    }
+    .toggle-row label {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      cursor: pointer;
+      user-select: none;
+    }
+    .toggle-switch {
+      position: relative;
+      width: 40px;
+      height: 22px;
+      flex-shrink: 0;
+    }
+    .toggle-switch input { opacity: 0; width: 0; height: 0; }
+    .toggle-slider {
+      position: absolute;
+      inset: 0;
+      background: #cbd5e1;
+      border-radius: 22px;
+      cursor: pointer;
+      transition: background .2s;
+    }
+    .toggle-slider::before {
+      content: '';
+      position: absolute;
+      width: 16px; height: 16px;
+      left: 3px; top: 3px;
+      background: white;
+      border-radius: 50%;
+      transition: transform .2s;
+      box-shadow: 0 1px 3px rgba(0,0,0,.2);
+    }
+    .toggle-switch input:checked + .toggle-slider { background: var(--success); }
+    .toggle-switch input:checked + .toggle-slider::before { transform: translateX(18px); }
+
     /* ─── Contact Hero (view mode: cliente trovato) ─── */
     .contact-hero {
       display: none;
@@ -816,6 +884,9 @@
       <div class="contact-hero-avatar" id="hero-avatar">?</div>
       <div class="contact-hero-name" id="hero-name">—</div>
       <div class="contact-hero-number">📞 <span id="hero-number">—</span></div>
+      <div id="hero-medea3-badge" style="display:none;">
+        <span class="medea3-badge"><span class="medea3-dot"></span>MedEA 3</span>
+      </div>
       <div class="contact-hero-details" id="hero-details"></div>
     </div>
 
@@ -835,6 +906,13 @@
       <div class="field-row full">
         <label>Note generali</label>
         <input type="text" id="f-notes" placeholder="Note sul cliente…">
+      </div>
+      <div class="toggle-row full" style="grid-column: 1 / -1;">
+        <label class="toggle-switch">
+          <input type="checkbox" id="f-medea3">
+          <span class="toggle-slider"></span>
+        </label>
+        <label for="f-medea3">Utilizza MedEA 3</label>
       </div>
     </div>
 
@@ -970,6 +1048,11 @@ const sb = supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
     if (contactUIState === 'edit') this.classList.add("changed");
   });
 });
+document.getElementById("f-medea3").addEventListener("change", function() {
+  if (contactUIState === 'edit') {
+    // visually hint the field changed (optional, toggle doesn't have .changed class)
+  }
+});
 
 // ─────────────────────────────────────────────
 // UI state management
@@ -998,6 +1081,8 @@ function setContactState(state) {
       el.classList.add("view-mode");
       el.classList.remove("changed");
     });
+    // Toggle medea3 disabilitato in view mode
+    document.getElementById("f-medea3").disabled = true;
     // Mostra hero card, nascondi griglia
     _showContactHero();
     document.getElementById("btn-row-view").style.display = "";
@@ -1011,6 +1096,8 @@ function setContactState(state) {
       el.removeAttribute("readonly");
       el.classList.remove("view-mode");
     });
+    // Toggle medea3 abilitato in edit mode
+    document.getElementById("f-medea3").disabled = false;
     document.getElementById("btn-row-edit").style.display = "";
     // Focus sul primo campo editabile
     setTimeout(() => document.getElementById("f-name").focus(), 50);
@@ -1024,6 +1111,8 @@ function setContactState(state) {
       el.classList.remove("view-mode");
       el.classList.remove("changed");
     });
+    // Toggle medea3 abilitato in new mode
+    document.getElementById("f-medea3").disabled = false;
     document.getElementById("btn-row-new").style.display = "";
   }
 }
@@ -1036,12 +1125,17 @@ function _showContactHero() {
   const address = document.getElementById("f-address").value.trim();
   const notes   = document.getElementById("f-notes").value.trim();
 
+  const usaMedea3 = document.getElementById("f-medea3").checked;
+
   // Avatar: prima lettera del nome (o icona generica)
   const avatar = document.getElementById("hero-avatar");
   avatar.textContent = name ? name.charAt(0).toUpperCase() : "?";
 
   document.getElementById("hero-name").textContent   = name   || "Cliente sconosciuto";
   document.getElementById("hero-number").textContent = number || "—";
+
+  // Badge MedEA 3
+  document.getElementById("hero-medea3-badge").style.display = usaMedea3 ? "" : "none";
 
   // Dettagli opzionali
   const details = document.getElementById("hero-details");
@@ -1073,9 +1167,10 @@ function enterEditMode() {
 async function reloadContact() {
   // Ricarica i dati originali da Supabase e torna in view mode
   if (currentContact) {
-    document.getElementById("f-name").value    = currentContact.name    || "";
-    document.getElementById("f-address").value = currentContact.address || "";
-    document.getElementById("f-notes").value   = currentContact.notes   || "";
+    document.getElementById("f-name").value     = currentContact.name    || "";
+    document.getElementById("f-address").value  = currentContact.address || "";
+    document.getElementById("f-notes").value    = currentContact.notes   || "";
+    document.getElementById("f-medea3").checked = !!currentContact.usa_medea3;
   }
   setContactState('view');
   toast("↩️ Modifiche annullate", "");
@@ -1112,6 +1207,7 @@ async function loadContactFromSupabase() {
       document.getElementById("f-name").value    = data.name    || "";
       document.getElementById("f-address").value = data.address || "";
       document.getElementById("f-notes").value   = data.notes   || "";
+      document.getElementById("f-medea3").checked = !!data.usa_medea3;
     }
   } catch(e) { console.warn("Supabase load error:", e.message); }
 }
@@ -1192,10 +1288,11 @@ async function saveContact() {
   if (saveBtn) saveBtn.disabled = true;
 
   const payload = {
-    number:  rawNumber,
-    name:    document.getElementById("f-name").value.trim() || null,
-    address: document.getElementById("f-address").value.trim() || null,
-    notes:   document.getElementById("f-notes").value.trim() || null,
+    number:     rawNumber,
+    name:       document.getElementById("f-name").value.trim() || null,
+    address:    document.getElementById("f-address").value.trim() || null,
+    notes:      document.getElementById("f-notes").value.trim() || null,
+    usa_medea3: document.getElementById("f-medea3").checked,
   };
   try {
     const { error } = await sb.from("contacts").upsert(payload, { onConflict: "number" });
