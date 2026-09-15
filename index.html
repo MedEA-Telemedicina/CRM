@@ -279,6 +279,87 @@
     }
     .field-row input.view-mode::placeholder { color: var(--text-faint); font-weight: 400; }
 
+    /* ─── 2-column field grid (stato edit/nuovo) ─── */
+    .fields-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0 14px;
+    }
+    .fields-grid .field-row.full { grid-column: 1 / -1; }
+
+    /* ─── Contact Hero (view mode: cliente trovato, non in modifica) ─── */
+    .contact-hero {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      padding: 8px 0 16px;
+      gap: 6px;
+    }
+    .contact-hero.active { display: flex; }
+    .contact-hero-avatar {
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 28px;
+      color: #fff;
+      font-weight: 700;
+      box-shadow: 0 4px 14px rgba(37,99,235,.30);
+      margin-bottom: 6px;
+      flex-shrink: 0;
+    }
+    .contact-hero-name {
+      font-size: 22px;
+      font-weight: 800;
+      color: var(--text);
+      line-height: 1.2;
+      letter-spacing: -0.3px;
+    }
+    .contact-hero-number {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--primary);
+      background: var(--primary-light);
+      padding: 4px 14px;
+      border-radius: 20px;
+      letter-spacing: 0.5px;
+    }
+    .contact-hero-details {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      width: 100%;
+      margin-top: 6px;
+    }
+    .contact-hero-detail-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      background: var(--bg);
+      border-radius: var(--radius-sm);
+      padding: 7px 12px;
+      font-size: 13.5px;
+      color: var(--text-muted);
+      text-align: left;
+    }
+    .contact-hero-detail-row .detail-icon { font-size: 14px; flex-shrink: 0; margin-top: 1px; }
+    .contact-hero-detail-row .detail-text { color: var(--text); font-weight: 500; }
+    .contact-hero-detail-row .detail-label {
+      color: var(--text-faint);
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 1px;
+    }
+
     /* ─── Textarea ─── */
     textarea {
       width: 100%;
@@ -700,21 +781,31 @@
   <div class="card" id="contact-card">
     <div class="card-title">📋 Scheda Cliente</div>
 
-    <div class="field-row">
-      <label>Numero</label>
-      <input type="text" id="f-number" readonly>
+    <!-- Vista cliente trovato (view mode) -->
+    <div class="contact-hero" id="contact-hero">
+      <div class="contact-hero-avatar" id="hero-avatar">?</div>
+      <div class="contact-hero-name" id="hero-name">—</div>
+      <div class="contact-hero-number">📞 <span id="hero-number">—</span></div>
+      <div class="contact-hero-details" id="hero-details"></div>
     </div>
-    <div class="field-row">
-      <label>Nome</label>
-      <input type="text" id="f-name" placeholder="Nome cliente…">
-    </div>
-    <div class="field-row">
-      <label>Indirizzo</label>
-      <input type="text" id="f-address" placeholder="Indirizzo…">
-    </div>
-    <div class="field-row">
-      <label>Note generali</label>
-      <input type="text" id="f-notes" placeholder="Note sul cliente…">
+
+    <div class="fields-grid" id="fields-grid">
+      <div class="field-row">
+        <label>Numero</label>
+        <input type="text" id="f-number" readonly>
+      </div>
+      <div class="field-row">
+        <label>Nome</label>
+        <input type="text" id="f-name" placeholder="Nome cliente…">
+      </div>
+      <div class="field-row full">
+        <label>Indirizzo</label>
+        <input type="text" id="f-address" placeholder="Indirizzo…">
+      </div>
+      <div class="field-row full">
+        <label>Note generali</label>
+        <input type="text" id="f-notes" placeholder="Note sul cliente…">
+      </div>
     </div>
 
     <!-- Avviso chiamate multiple oggi (solo se trovato) -->
@@ -866,8 +957,13 @@ function setContactState(state) {
       el.classList.add("view-mode");
       el.classList.remove("changed");
     });
+    // Mostra hero card, nascondi griglia
+    _showContactHero();
     document.getElementById("btn-row-view").style.display = "";
   } else if (state === 'edit') {
+    // Nascondi hero, mostra griglia
+    document.getElementById("contact-hero").classList.remove("active");
+    document.getElementById("fields-grid").style.display = "";
     // Campi editabili
     editableIds.forEach(id => {
       const el = document.getElementById(id);
@@ -878,7 +974,9 @@ function setContactState(state) {
     // Focus sul primo campo editabile
     setTimeout(() => document.getElementById("f-name").focus(), 50);
   } else {
-    // 'new': campi editabili, stile normale
+    // 'new': nascondi hero, mostra griglia
+    document.getElementById("contact-hero").classList.remove("active");
+    document.getElementById("fields-grid").style.display = "";
     editableIds.forEach(id => {
       const el = document.getElementById(id);
       el.removeAttribute("readonly");
@@ -887,6 +985,41 @@ function setContactState(state) {
     });
     document.getElementById("btn-row-new").style.display = "";
   }
+}
+
+// ── Popola e mostra la hero card del cliente ──────────────────────────────
+function _showContactHero() {
+  const name    = document.getElementById("f-name").value.trim();
+  const number  = document.getElementById("f-number").value.trim();
+  const address = document.getElementById("f-address").value.trim();
+  const notes   = document.getElementById("f-notes").value.trim();
+
+  // Avatar: prima lettera del nome (o icona generica)
+  document.getElementById("hero-avatar").textContent = name ? name.charAt(0).toUpperCase() : "?";
+  document.getElementById("hero-name").textContent   = name   || "Cliente sconosciuto";
+  document.getElementById("hero-number").textContent = number || "—";
+
+  // Dettagli opzionali
+  const details = document.getElementById("hero-details");
+  details.innerHTML = "";
+  if (address) {
+    details.innerHTML += `
+      <div class="contact-hero-detail-row">
+        <span class="detail-icon">📍</span>
+        <div><div class="detail-label">Indirizzo</div><div class="detail-text">${address}</div></div>
+      </div>`;
+  }
+  if (notes) {
+    details.innerHTML += `
+      <div class="contact-hero-detail-row">
+        <span class="detail-icon">📝</span>
+        <div><div class="detail-label">Note</div><div class="detail-text">${notes}</div></div>
+      </div>`;
+  }
+
+  // Mostra hero, nascondi griglia
+  document.getElementById("contact-hero").classList.add("active");
+  document.getElementById("fields-grid").style.display = "none";
 }
 
 function enterEditMode() {
