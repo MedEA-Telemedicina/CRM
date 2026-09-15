@@ -541,75 +541,109 @@
     /* ─── Divider ─── */
     .section-gap { height: 4px; }
 
-    /* ─── Call stats ─── */
-    .call-stats-divider {
-      border: none;
-      border-top: 1px solid var(--border);
-      margin: 14px 0 10px;
+    /* ─── Call stats: card moderna ─── */
+    .call-stats-card {
+      margin-top: 14px;
+      background: linear-gradient(135deg, #eff6ff 0%, #f5f9ff 100%);
+      border: 1.5px solid #bfdbfe;
+      border-radius: var(--radius-sm);
+      padding: 14px 16px;
+      animation: fadeSlideUp .4s ease both;
     }
-    .call-stats-row {
+    .call-stats-main {
       display: flex;
       align-items: center;
-      justify-content: space-between;
-      gap: 8px;
+      gap: 13px;
     }
-    .call-stats-label {
+    .call-stats-icon {
+      width: 42px; height: 42px;
+      flex-shrink: 0;
+      border-radius: 12px;
+      background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+      display: flex; align-items: center; justify-content: center;
+      font-size: 19px;
+      box-shadow: 0 3px 10px rgba(37,99,235,.35);
+    }
+    .call-stats-info {
       display: flex;
-      align-items: center;
-      gap: 5px;
-      font-size: 11.5px;
-      color: var(--text-faint);
-      font-weight: 500;
+      flex-direction: column;
+      gap: 1px;
+      flex: 1;
+      min-width: 0;
+    }
+    .call-stats-title {
+      font-size: 10.5px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .6px;
+      color: var(--text-muted);
     }
     .call-stats-count {
-      font-weight: 700;
-      color: var(--text-muted);
+      font-size: 25px;
+      font-weight: 800;
+      color: var(--primary-dark);
+      font-family: 'SF Mono', monospace;
+      line-height: 1.15;
+    }
+    .call-stats-count .unit {
       font-size: 12px;
-      background: #f1f5f9;
-      border-radius: 20px;
-      padding: 1px 9px;
+      font-weight: 600;
+      color: var(--text-muted);
+      font-family: 'Inter', sans-serif;
+      margin-left: 4px;
     }
     .call-stats-toggle {
-      background: none;
-      border: none;
-      font-size: 11px;
+      background: white;
+      border: 1.5px solid #bfdbfe;
       color: var(--primary);
+      font-size: 12px;
+      font-weight: 700;
+      padding: 7px 13px;
+      border-radius: 20px;
       cursor: pointer;
-      padding: 2px 4px;
-      border-radius: 4px;
-      font-weight: 500;
-      transition: background .15s;
-      text-decoration: underline;
-      text-underline-offset: 2px;
+      font-family: inherit;
+      display: flex; align-items: center; gap: 5px;
+      flex-shrink: 0;
+      transition: background .15s, box-shadow .15s;
     }
-    .call-stats-toggle:hover { background: var(--primary-light); }
+    .call-stats-toggle:hover { background: var(--primary-light); box-shadow: 0 2px 8px rgba(37,99,235,.15); }
+    .call-stats-toggle .chev { font-size: 10px; transition: transform .25s ease; }
+    .call-stats-toggle.open .chev { transform: rotate(180deg); }
 
     /* Storico mesi */
     .call-history-months {
-      margin-top: 8px;
-      display: none;
+      margin-top: 0;
+      max-height: 0;
+      overflow: hidden;
+      display: flex;
       flex-direction: column;
-      gap: 4px;
-      animation: fadeSlideUp .2s ease both;
+      gap: 6px;
+      transition: max-height .3s ease, margin-top .3s ease;
     }
-    .call-history-months.open { display: flex; }
+    .call-history-months.open {
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid #bfdbfe;
+      max-height: 400px;
+    }
     .call-month-row {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 4px 8px;
-      border-radius: 6px;
-      background: #f8fafc;
-      font-size: 11.5px;
+      padding: 7px 12px;
+      border-radius: 9px;
+      background: white;
+      box-shadow: var(--shadow-sm);
+      font-size: 12.5px;
     }
-    .call-month-label { color: var(--text-muted); }
+    .call-month-label { color: var(--text-muted); font-weight: 500; }
     .call-month-count {
       font-weight: 700;
-      color: var(--text-muted);
-      font-size: 11px;
-      background: #e2e8f0;
+      color: var(--primary-dark);
+      font-size: 11.5px;
+      background: var(--primary-light);
       border-radius: 20px;
-      padding: 1px 8px;
+      padding: 2px 10px;
     }
 
     /* ─── Today warning ─── */
@@ -708,17 +742,19 @@
 
     <!-- Statistiche chiamate (solo se trovato) -->
     <div id="call-stats-section" style="display:none;">
-      <hr class="call-stats-divider">
-      <div class="call-stats-row">
-        <span class="call-stats-label">
-          📞 Chiamate questo mese:
-          <span class="call-stats-count" id="calls-this-month">–</span>
-        </span>
-        <button class="call-stats-toggle" id="toggle-history-btn" onclick="toggleCallHistory()">
-          storico ▾
-        </button>
+      <div class="call-stats-card">
+        <div class="call-stats-main">
+          <div class="call-stats-icon">📞</div>
+          <div class="call-stats-info">
+            <span class="call-stats-title">Chiamate questo mese</span>
+            <span class="call-stats-count" id="calls-this-month">–</span>
+          </div>
+          <button class="call-stats-toggle" id="toggle-history-btn" onclick="toggleCallHistory()">
+            Storico <span class="chev">▾</span>
+          </button>
+        </div>
+        <div class="call-history-months" id="call-history-months"></div>
       </div>
-      <div class="call-history-months" id="call-history-months"></div>
     </div>
 
     <!-- Bottoni: stato NEW (cliente non trovato) -->
@@ -1195,7 +1231,7 @@ function toggleCallHistory() {
   const el = document.getElementById("call-history-months");
   const btn = document.getElementById("toggle-history-btn");
   el.classList.toggle("open", _callHistoryOpen);
-  btn.textContent = _callHistoryOpen ? "storico ▴" : "storico ▾";
+  btn.classList.toggle("open", _callHistoryOpen);
 }
 
 // ─────────────────────────────────────────────
