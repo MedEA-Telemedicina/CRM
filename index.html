@@ -973,12 +973,28 @@
 // ─────────────────────────────────────────────
 const params = new URLSearchParams(window.location.search);
 const rawNumber = params.get("number") || "";
+
+// ── Identificativo operatore (interno 3CX) ──
+// L'interno arriva dall'URL (?ext=101). Se manca, usa l'ultimo salvato su questo browser.
+// Facoltativo: in config.js puoi definire  OPERATORS: { "101": "Mario Rossi", "102": "Anna Verdi" }
+const OPERATORS = (typeof CONFIG !== "undefined" && CONFIG.OPERATORS) || {};
+const agentExt = (() => {
+  const fromUrl = (params.get("ext") || params.get("agent") || "").trim();
+  try {
+    if (fromUrl) { localStorage.setItem("crm_agent_ext", fromUrl); return fromUrl; }
+    return localStorage.getItem("crm_agent_ext") || "";
+  } catch(e) { return fromUrl; }
+})();
+const agentName = (params.get("agentname") || OPERATORS[agentExt] || "").trim();
 let currentContact = null;
 // 'new' | 'view' | 'edit'
 let contactUIState = 'new';
 
 document.getElementById("header-number").textContent = rawNumber || "Nessun numero";
 document.getElementById("f-number").value = rawNumber;
+if (agentName || agentExt) {
+  document.getElementById("f-operator").value = agentName || ("Int. " + agentExt);
+}
 
 const sb = supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
 
@@ -1267,6 +1283,7 @@ async function doSaveNote(operator, noteText) {
   try {
     const { error } = await sb.from("call_notes").insert({
       number: rawNumber, operator, note: noteText, id_tools: idTools,
+      agent_ext: agentExt || null,
     });
     if (error) throw error;
     document.getElementById("f-note").value = "";
@@ -1293,7 +1310,8 @@ async function loadNotes() {
     }
     container.innerHTML = data.map(n => {
       const dt = new Date(n.call_date).toLocaleString("it-IT");
-      const op = n.operator ? `<strong>${escHtml(n.operator)}</strong> · ` : "";
+      const op = n.operator
+        ? `<strong>${escHtml(n.operator)}</strong>${n.agent_ext ? ` (int. ${escHtml(n.agent_ext)})` : ""} · ` : "";
       const idtag = n.id_tools
         ? `<span class="id-badge">🔧 ${escHtml(n.id_tools)}</span>` : "";
       return `
@@ -1323,13 +1341,23 @@ let _callHistoryOpen = false;
  *   CREATE TABLE IF NOT EXISTS call_log (
  *     id        BIGSERIAL PRIMARY KEY,
  *     number    TEXT NOT NULL,
- *     called_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+ *     called_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+ *     agent_ext TEXT,
+ *     agent_name TEXT
  *   );
+ *   -- Se le tabelle esistono già:
+ *   ALTER TABLE call_log   ADD COLUMN IF NOT EXISTS agent_ext  TEXT;
+ *   ALTER TABLE call_log   ADD COLUMN IF NOT EXISTS agent_name TEXT;
+ *   ALTER TABLE call_notes ADD COLUMN IF NOT EXISTS agent_ext  TEXT;
  *   CREATE INDEX IF NOT EXISTS idx_call_log_number ON call_log(number);
  */
 async function logCall() {
   try {
-    const { error } = await sb.from("call_log").insert({ number: rawNumber });
+    const { error } = await sb.from("call_log").insert({
+      number: rawNumber,
+      agent_ext: agentExt || null,
+      agent_name: agentName || null,
+    });
     if (error) throw error;
   } catch(e) {
     console.warn("logCall error:", e.message);
