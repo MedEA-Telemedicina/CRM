@@ -999,8 +999,23 @@ document.getElementById("f-number").value = rawNumber;
     inp.value = agentName || ("Int. " + agentExt);
     hint.textContent = "· interno " + agentExt + (agentName ? "" : " (nome non in config.js)");
   } else {
-    hint.textContent = "· interno non rilevato (manca &ext= nell'URL)";
     hint.style.color = "var(--danger)";
+    hint.innerHTML = '· interno non rilevato — il tuo interno: '
+      + '<input id="ext-set" type="text" inputmode="numeric" placeholder="es. 41" '
+      + 'style="width:60px;padding:2px 6px;font-size:12px;border:1px solid var(--border);border-radius:6px"> '
+      + '<button type="button" id="ext-set-btn" '
+      + 'style="padding:2px 8px;font-size:12px;border:0;border-radius:6px;background:var(--primary);color:#fff;cursor:pointer">Salva</button>'
+      + '<div id="ext-debug" style="margin-top:3px;color:var(--text-faint)"></div>';
+    document.getElementById("ext-debug").textContent =
+      "URL ricevuto: " + (window.location.search || "(nessun parametro)");
+    const saveExt = () => {
+      const v = document.getElementById("ext-set").value.trim();
+      if (!v) return;
+      try { localStorage.setItem("crm_agent_ext", v); } catch(e) {}
+      window.location.reload();
+    };
+    document.getElementById("ext-set-btn").addEventListener("click", saveExt);
+    document.getElementById("ext-set").addEventListener("keydown", e => { if (e.key === "Enter") saveExt(); });
   }
 })();
 
