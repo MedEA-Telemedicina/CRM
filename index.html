@@ -975,16 +975,10 @@ const params = new URLSearchParams(window.location.search);
 const rawNumber = params.get("number") || "";
 
 // ── Identificativo operatore (interno 3CX) ──
-// L'interno arriva dall'URL (?ext=101). Se manca, usa l'ultimo salvato su questo browser.
+// L'interno arriva solo dall'URL (?ext=101), impostato in 3CX per ogni operatore.
 // Facoltativo: in config.js puoi definire  OPERATORS: { "101": "Mario Rossi", "102": "Anna Verdi" }
 const OPERATORS = (typeof CONFIG !== "undefined" && CONFIG.OPERATORS) || {};
-const agentExt = (() => {
-  const fromUrl = (params.get("ext") || params.get("agent") || "").trim();
-  try {
-    if (fromUrl) { localStorage.setItem("crm_agent_ext", fromUrl); return fromUrl; }
-    return localStorage.getItem("crm_agent_ext") || "";
-  } catch(e) { return fromUrl; }
-})();
+const agentExt = (params.get("ext") || params.get("agent") || "").trim();
 const agentName = (params.get("agentname") || OPERATORS[agentExt] || "").trim();
 let currentContact = null;
 // 'new' | 'view' | 'edit'
@@ -995,27 +989,17 @@ document.getElementById("f-number").value = rawNumber;
 (function showOperator() {
   const inp = document.getElementById("f-operator");
   const hint = document.getElementById("operator-hint");
-  if (agentName || agentExt) {
+  inp.readOnly = true;
+  inp.style.background = "var(--bg)";
+  inp.style.cursor = "not-allowed";
+  if (agentExt) {
     inp.value = agentName || ("Int. " + agentExt);
+    inp.title = "Compilato automaticamente dal tuo interno 3CX";
     hint.textContent = "· interno " + agentExt + (agentName ? "" : " (nome non in config.js)");
   } else {
+    inp.placeholder = "Interno non rilevato";
     hint.style.color = "var(--danger)";
-    hint.innerHTML = '· interno non rilevato — il tuo interno: '
-      + '<input id="ext-set" type="text" inputmode="numeric" placeholder="es. 41" '
-      + 'style="width:60px;padding:2px 6px;font-size:12px;border:1px solid var(--border);border-radius:6px"> '
-      + '<button type="button" id="ext-set-btn" '
-      + 'style="padding:2px 8px;font-size:12px;border:0;border-radius:6px;background:var(--primary);color:#fff;cursor:pointer">Salva</button>'
-      + '<div id="ext-debug" style="margin-top:3px;color:var(--text-faint)"></div>';
-    document.getElementById("ext-debug").textContent =
-      "URL ricevuto: " + (window.location.search || "(nessun parametro)");
-    const saveExt = () => {
-      const v = document.getElementById("ext-set").value.trim();
-      if (!v) return;
-      try { localStorage.setItem("crm_agent_ext", v); } catch(e) {}
-      window.location.reload();
-    };
-    document.getElementById("ext-set-btn").addEventListener("click", saveExt);
-    document.getElementById("ext-set").addEventListener("keydown", e => { if (e.key === "Enter") saveExt(); });
+    hint.textContent = "· interno non rilevato: controlla l'URL in 3CX (&ext=...)";
   }
 })();
 
@@ -1278,6 +1262,7 @@ async function saveContact() {
 async function saveNote() {
   const noteText = document.getElementById("f-note").value.trim();
   if (!noteText) { toast("Scrivi una nota prima di salvare.", "red"); return; }
+  if (!agentExt) { toast("Interno non rilevato: impossibile salvare la nota.", "red"); return; }
   const operator = document.getElementById("f-operator").value.trim();
   if (!operator) { showOperatorModal(); return; }
   await doSaveNote(operator, noteText);
@@ -1293,6 +1278,7 @@ function closeOperatorModal() {
   document.getElementById("operator-modal").classList.remove("open");
 }
 async function confirmSaveNote() {
+  if (!agentExt) { closeOperatorModal(); return; }
   const inp = document.getElementById("modal-operator-input");
   const op = inp.value.trim();
   if (!op) { inp.classList.add("err"); inp.focus(); return; }
