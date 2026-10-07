@@ -922,7 +922,7 @@
   <div class="card">
     <div class="card-title">🔧 Nuova nota assistenza</div>
     <div class="field-row">
-      <label>Operatore <span style="color:var(--danger)">*</span></label>
+      <label>Operatore <span style="color:var(--danger)">*</span> <span id="operator-hint" style="font-weight:400;color:var(--text-faint);font-size:11px"></span></label>
       <input type="text" id="f-operator" placeholder="Il tuo nome…" required>
     </div>
     <div class="note-row">
@@ -992,9 +992,17 @@ let contactUIState = 'new';
 
 document.getElementById("header-number").textContent = rawNumber || "Nessun numero";
 document.getElementById("f-number").value = rawNumber;
-if (agentName || agentExt) {
-  document.getElementById("f-operator").value = agentName || ("Int. " + agentExt);
-}
+(function showOperator() {
+  const inp = document.getElementById("f-operator");
+  const hint = document.getElementById("operator-hint");
+  if (agentName || agentExt) {
+    inp.value = agentName || ("Int. " + agentExt);
+    hint.textContent = "· interno " + agentExt + (agentName ? "" : " (nome non in config.js)");
+  } else {
+    hint.textContent = "· interno non rilevato (manca &ext= nell'URL)";
+    hint.style.color = "var(--danger)";
+  }
+})();
 
 const sb = supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
 
