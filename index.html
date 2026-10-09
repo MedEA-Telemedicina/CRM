@@ -1827,16 +1827,6 @@ document.addEventListener("pointerdown", e => {
   b.appendChild(i); setTimeout(() => i.remove(), 650);
 });
 
-// ─── Finestra: mantiene la larghezza, porta l'altezza al massimo dello schermo ───
-(function fitWindowHeight() {
-  const fit = () => {
-    try {
-      window.resizeTo(window.outerWidth, screen.availHeight);
-      window.moveTo(window.screenX, screen.availTop || 0);
-    } catch (e) {}
-  };
-  fit(); setTimeout(fit, 400);
-})();
 
 init();
 </script>
