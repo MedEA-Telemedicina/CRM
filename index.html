@@ -985,6 +985,15 @@
     .rc-av{border:none;color:#fff}
     .rc-date{color:var(--text-muted);opacity:1}
   </style>
+  <style id="v6">
+    /* Scheda cliente: niente banda dietro l'avatar */
+    .contact-hero::before,.contact-hero::after{display:none!important}
+    .contact-hero-avatar{margin-top:6px;border:none;width:76px;height:76px;font-size:34px}
+  </style>
+  <style id="v7">
+    /* Avatar: bordo spesso ripristinato, senza banda */
+    .contact-hero-avatar{margin-top:6px;width:84px;height:84px;font-size:38px;border:4px solid var(--surface)}
+  </style>
 </head>
 <body>
 
