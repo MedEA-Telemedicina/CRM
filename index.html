@@ -994,6 +994,20 @@
     /* Avatar: bordo spesso ripristinato, senza banda */
     .contact-hero-avatar{margin-top:6px;width:84px;height:84px;font-size:38px;border:4px solid var(--surface)}
   </style>
+  <style id="v9">
+    /* Ultimo operatore: compatto e discreto */
+    .last-op,.container>.last-op{padding:8px 14px;gap:10px;margin-bottom:10px;border-radius:12px;border-left-width:3px;box-shadow:none}
+    .op-avatar{width:30px;height:30px;font-size:12px}
+    .op-info{flex-direction:row;flex-wrap:wrap;align-items:baseline;gap:2px 8px}
+    .op-label{font-size:10px;letter-spacing:.4px}
+    .op-name{font-size:14px;font-weight:700}
+    .op-name em{font-size:9px;padding:1px 6px}
+    .op-when{font-size:11px}
+    .op-chev{font-size:11px}
+    .last-op.open .recent-list{margin-top:2px}
+    .rc-row{padding:4px 8px;font-size:12px;border-radius:8px}
+    .rc-av{width:20px;height:20px;font-size:9px}
+  </style>
 </head>
 <body>
 
@@ -1812,6 +1826,17 @@ document.addEventListener("pointerdown", e => {
   i.className = "ripple"; i.style.cssText = `width:${d}px;height:${d}px;left:${e.clientX - r.left - d / 2}px;top:${e.clientY - r.top - d / 2}px`;
   b.appendChild(i); setTimeout(() => i.remove(), 650);
 });
+
+// ─── Finestra: mantiene la larghezza, porta l'altezza al massimo dello schermo ───
+(function fitWindowHeight() {
+  const fit = () => {
+    try {
+      window.resizeTo(window.outerWidth, screen.availHeight);
+      window.moveTo(window.screenX, screen.availTop || 0);
+    } catch (e) {}
+  };
+  fit(); setTimeout(fit, 400);
+})();
 
 init();
 </script>
