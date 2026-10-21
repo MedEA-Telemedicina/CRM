@@ -1024,6 +1024,30 @@
     #assist-badge-title{margin-left:auto;order:2}
     #notes-card.flash{animation:notesFlash 1.6s ease}
     @keyframes notesFlash{0%,60%{box-shadow:0 0 0 3px rgba(239,68,68,.55),var(--shadow-md)}100%{box-shadow:var(--shadow-md)}}
+
+    /* ─── Nota "verificata" ─── */
+    .note-actions{display:flex;align-items:center;gap:6px;flex-shrink:0}
+    .note-verify{display:inline-flex;align-items:center;gap:6px;cursor:pointer;user-select:none;
+      font-size:11px;font-weight:600;color:var(--text-muted);padding:3px 9px 3px 6px;border-radius:999px;
+      border:1px solid var(--border);background:var(--surface);transition:background .15s,color .15s,border-color .15s}
+    .note-verify:hover{border-color:var(--success);color:var(--success-dark)}
+    .note-verify input{position:absolute;opacity:0;width:0;height:0}
+    .note-verify .nv-box{width:15px;height:15px;border-radius:5px;border:1.5px solid var(--text-faint);
+      display:inline-flex;align-items:center;justify-content:center;transition:background .15s,border-color .15s}
+    .note-verify .nv-box::after{content:'';width:4px;height:8px;border:solid #fff;border-width:0 2px 2px 0;
+      transform:rotate(45deg) scale(0);margin-top:-2px;transition:transform .15s}
+    .note-verify input:checked + .nv-box{background:var(--success);border-color:var(--success)}
+    .note-verify input:checked + .nv-box::after{transform:rotate(45deg) scale(1)}
+    .note-verify input:focus-visible + .nv-box{outline:2px solid var(--primary);outline-offset:2px}
+    .note-verify input:disabled + .nv-box{opacity:.5}
+    .note-verify:has(input:checked){background:#f0fdf4;border-color:#bbf7d0;color:var(--success-dark)}
+    .note-item.verified{border-color:#bbf7d0}
+    .note-item.verified::before{background:var(--success);border-color:var(--success);box-shadow:0 0 0 4px rgba(16,185,129,.14)}
+    .note-item.verified:hover{border-color:#6ee7b7}
+    .note-item.verified .note-text{color:var(--text-muted)}
+    :root[data-theme=dark] .note-verify{background:transparent}
+    :root[data-theme=dark] .note-verify:has(input:checked){background:rgba(16,185,129,.14);border-color:rgba(52,211,153,.4);color:#6ee7b7}
+    :root[data-theme=dark] .note-item.verified{border-color:rgba(52,211,153,.35)}
   </style>
 </head>
 <body>
@@ -1272,12 +1296,14 @@ const sb = supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
 // ─────────────────────────────────────────────
 // Badge "Assistenza presente"
 // ─────────────────────────────────────────────
-let _assistCount = 0;
+let _assistCount = 0;   // assistenze ancora da verificare
+let _notes = [];        // note caricate per questo numero
 function renderAssistBadge() {
+  _assistCount = _notes.filter(x => !x.verified).length;
   const n = _assistCount;
   const html = n > 0
     ? `<span class="ab-dot"></span>Assistenza presente<span class="ab-n">${n}</span>` : "";
-  const label = n === 1 ? "1 assistenza presente" : n + " assistenze presenti";
+  const label = n === 1 ? "1 assistenza da verificare" : n + " assistenze da verificare";
   const heroVisible = document.getElementById("contact-hero").classList.contains("active");
   [["assist-badge-hero", heroVisible], ["assist-badge-title", !heroVisible]].forEach(([id, ok]) => {
     const el = document.getElementById(id);
@@ -1289,8 +1315,8 @@ function renderAssistBadge() {
 function goToNotes() {
   const card = document.getElementById("notes-card");
   card.scrollIntoView({ behavior: "smooth", block: "start" });
-  const first = document.querySelector("#notes-list .note-item");
-  if (first) first.classList.add("open");   // apre la nota più recente
+  const first = document.querySelector("#notes-list .note-item:not(.verified)");
+  if (first) first.classList.add("open");   // apre la prima nota ancora da verificare
   card.classList.remove("flash"); void card.offsetWidth; card.classList.add("flash");
 }
 
@@ -1598,7 +1624,7 @@ async function loadNotes() {
       .eq("number", rawNumber)
       .order("call_date", { ascending: false });
     if (error) throw error;
-    _assistCount = data ? data.length : 0;
+    _notes = data || [];
     renderAssistBadge();
     if (!data || data.length === 0) {
       container.innerHTML = '<div class="empty-notes"><div class="empty-notes-icon">📭</div>Nessuna nota salvata per questo numero.</div>';
@@ -1611,10 +1637,16 @@ async function loadNotes() {
       const idtag = n.id_tools
         ? `<span class="id-badge">🔧 ${escHtml(n.id_tools)}</span>` : "";
       return `
-        <div class="note-item" data-id="${n.id}" onclick="this.classList.toggle('open')" title="Clicca per espandere">
+        <div class="note-item${n.verified ? " verified" : ""}" data-id="${n.id}" onclick="this.classList.toggle('open')" title="Clicca per espandere">
           <div class="note-meta">
             <span>${op}${dt}${idtag}</span>
-            <button class="btn-delete-note" onclick="event.stopPropagation();deleteNote(${n.id})" title="Elimina nota">🗑️</button>
+            <span class="note-actions">
+              <label class="note-verify" onclick="event.stopPropagation()" title="Segna come verificata">
+                <input type="checkbox" ${n.verified ? "checked" : ""} onchange="toggleVerified(${n.id}, this)">
+                <span class="nv-box"></span>Verificata
+              </label>
+              <button class="btn-delete-note" onclick="event.stopPropagation();deleteNote(${n.id})" title="Elimina nota">🗑️</button>
+            </span>
           </div>
           <div class="note-text">${escHtml(n.note)}</div>
         </div>`;
@@ -1759,6 +1791,34 @@ function toggleCallHistory() {
 }
 
 // ─────────────────────────────────────────────
+/**
+ * Segna/rimuove la spunta "verificata" su una nota (salvata su Supabase).
+ *
+ * SQL da eseguire su Supabase (una-tantum):
+ *   ALTER TABLE call_notes ADD COLUMN IF NOT EXISTS verified BOOLEAN NOT NULL DEFAULT FALSE;
+ *   -- Se la tabella ha RLS attiva serve anche una policy di UPDATE, ad esempio:
+ *   -- CREATE POLICY "notes_update" ON call_notes FOR UPDATE USING (true) WITH CHECK (true);
+ */
+async function toggleVerified(id, input) {
+  const note = _notes.find(x => x.id === id);
+  if (!note) return;
+  const next = input.checked, item = input.closest(".note-item");
+  const apply = v => { note.verified = v; input.checked = v; item.classList.toggle("verified", v); renderAssistBadge(); };
+  apply(next);                       // aggiornamento immediato
+  input.disabled = true;
+  try {
+    const { data, error } = await sb.from("call_notes").update({ verified: next }).eq("id", id).select("id");
+    if (error) throw error;
+    if (!data || !data.length) throw new Error("nessuna riga aggiornata (controlla le policy UPDATE su Supabase)");
+    toast(next ? "✅ Nota verificata" : "Verifica rimossa", next ? "green" : "");
+  } catch (e) {
+    apply(!next);                    // ripristina lo stato precedente
+    toast("❌ Errore: " + e.message, "red");
+  } finally {
+    input.disabled = false;
+  }
+}
+
 async function deleteNote(id) {
   if (!confirm("Eliminare questa nota?")) return;
   try {
@@ -1860,7 +1920,11 @@ function toggleTheme() {
 }
 function filterNotes() {
   const q = document.getElementById("notes-filter").value.trim().toLowerCase();
-  document.querySelectorAll("#notes-list .note-item").forEach(el => el.classList.toggle("hide", q && !el.textContent.toLowerCase().includes(q)));
+  document.querySelectorAll("#notes-list .note-item").forEach(el => {
+    const n = _notes.find(x => String(x.id) === el.dataset.id) || {};
+    const hay = [n.note, n.operator, n.id_tools, n.agent_ext, n.call_date && new Date(n.call_date).toLocaleString("it-IT")].join(" ").toLowerCase();
+    el.classList.toggle("hide", !!q && !hay.includes(q));
+  });
 }
 // Ctrl+Invio nella nota = salva
 document.getElementById("f-note").addEventListener("keydown", e => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) saveNote(); });
